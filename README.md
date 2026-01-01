@@ -212,6 +212,7 @@ lsof -ti :8000 | xargs kill -9
 
 #### 방법 2: Docker로 실행 (권장, 프로덕션 환경)
 
+**기본 Docker Compose (개발 환경):**
 ```bash
 # 프로젝트 루트에서
 docker-compose up -d
@@ -229,10 +230,42 @@ docker-compose down
 docker-compose down -v
 ```
 
-Docker로 실행 시 접속 주소:
+기본 Docker Compose로 실행 시 접속 주소:
 - 프론트엔드: http://localhost:3000
 - 백엔드 API: http://localhost:8000
 - API 문서: http://localhost:8000/docs
+
+**T3.small 최적화 배포 (프로덕션 환경):**
+```bash
+# 프로젝트 루트에서
+docker-compose -f docker-compose.t3small.yml up -d --build
+
+# 실행 상태 확인
+docker-compose -f docker-compose.t3small.yml ps
+
+# 로그 확인 (실시간)
+docker-compose -f docker-compose.t3small.yml logs -f
+
+# 특정 서비스 로그만 확인
+docker-compose -f docker-compose.t3small.yml logs -f backend
+docker-compose -f docker-compose.t3small.yml logs -f nginx
+docker-compose -f docker-compose.t3small.yml logs -f redis
+
+# 서비스 중지
+docker-compose -f docker-compose.t3small.yml down
+
+# 서비스 재시작
+docker-compose -f docker-compose.t3small.yml restart
+
+# 메모리 사용량 모니터링
+docker stats
+```
+
+T3.small 배포 시 접속 주소:
+- **프론트엔드**: http://localhost
+- **백엔드 API**: http://localhost/api/v1/
+- **Health Check**: http://localhost/health
+- **API 문서**: http://localhost/api/v1/docs (DEBUG=True일 때만)
 
 ---
 
@@ -240,11 +273,15 @@ Docker로 실행 시 접속 주소:
 
 #### 백엔드 실행 확인
 ```bash
-# 터미널에서 확인
+# 로컬 실행 시 (포트 8000)
 curl http://localhost:8000/health
 
+# T3.small 배포 시 (포트 80, Nginx 경유)
+curl http://localhost/health
+
 # 또는 브라우저에서 접속
-# http://localhost:8000/health
+# 로컬: http://localhost:8000/health
+# 배포: http://localhost/health
 ```
 
 정상 응답 예시:
@@ -253,7 +290,8 @@ curl http://localhost:8000/health
 ```
 
 #### 프론트엔드 실행 확인
-- 브라우저에서 http://localhost:3000 접속
+- 로컬 실행: 브라우저에서 http://localhost:3000 접속
+- T3.small 배포: 브라우저에서 http://localhost 접속
 - 페이지가 정상적으로 로드되는지 확인
 
 #### 자주 발생하는 문제
@@ -427,6 +465,7 @@ tail -f /tmp/backend_server.log
 
 **Docker 로그 확인:**
 ```bash
+# 기본 Docker Compose (개발 환경)
 # 모든 서비스 로그 확인
 docker-compose logs -f
 
@@ -442,6 +481,18 @@ docker-compose logs --tail=100 backend
 # 특정 시간 이후 로그만 확인
 docker-compose logs --since 10m backend  # 최근 10분
 docker-compose logs --since 2024-01-02T10:00:00 backend  # 특정 시간 이후
+
+# T3.small 배포 환경
+# 모든 서비스 로그 확인
+docker-compose -f docker-compose.t3small.yml logs -f
+
+# 특정 서비스 로그만 확인
+docker-compose -f docker-compose.t3small.yml logs -f backend
+docker-compose -f docker-compose.t3small.yml logs -f nginx
+docker-compose -f docker-compose.t3small.yml logs -f redis
+
+# 최근 100줄만 확인
+docker-compose -f docker-compose.t3small.yml logs --tail=100 backend
 ```
 
 **로그 레벨별 확인:**

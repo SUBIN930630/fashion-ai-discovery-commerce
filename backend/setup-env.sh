@@ -1,3 +1,19 @@
+#!/bin/bash
+
+# .env 파일 자동 설정 스크립트
+# T3.small 배포용 환경 변수 파일 생성
+
+set -e
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$SCRIPT_DIR"
+
+echo "🔧 .env 파일 설정 시작..."
+
+# .env.example이 있으면 복사, 없으면 생성
+if [ ! -f .env.example ]; then
+    echo "📝 .env.example 파일 생성 중..."
+    cat > .env.example << 'EOF'
 # ============================================
 # Fashion AI Discovery Commerce - 환경 변수 예제
 # ============================================
@@ -94,3 +110,53 @@ ENABLE_IMAGE_SEARCH=False
 ENABLE_VOICE_INTERFACE=False
 ENABLE_MULTIMODAL=False
 ENABLE_AB_TESTING=True
+EOF
+fi
+
+# .env 파일이 없으면 .env.example에서 복사
+if [ ! -f .env ]; then
+    echo "📋 .env.example을 .env로 복사 중..."
+    cp .env.example .env
+    echo "✅ .env 파일이 생성되었습니다."
+else
+    echo "ℹ️  .env 파일이 이미 존재합니다."
+    read -p "기존 .env 파일을 덮어쓰시겠습니까? (y/N): " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        cp .env.example .env
+        echo "✅ .env 파일이 덮어쓰기되었습니다."
+    else
+        echo "⏭️  기존 .env 파일을 유지합니다."
+    fi
+fi
+
+# SECRET_KEY 생성
+if [ -f .env ]; then
+    if grep -q "SECRET_KEY=dev-secret-key-change" .env || grep -q "SECRET_KEY=CHANGE-THIS" .env; then
+        echo "🔑 SECRET_KEY 생성 중..."
+        if command -v openssl &> /dev/null; then
+            NEW_SECRET_KEY=$(openssl rand -hex 32)
+            # macOS와 Linux 호환
+            if [[ "$OSTYPE" == "darwin"* ]]; then
+                sed -i '' "s|SECRET_KEY=.*|SECRET_KEY=$NEW_SECRET_KEY|" .env
+            else
+                sed -i "s|SECRET_KEY=.*|SECRET_KEY=$NEW_SECRET_KEY|" .env
+            fi
+            echo "✅ SECRET_KEY가 자동으로 생성되었습니다."
+        else
+            echo "⚠️  openssl이 없어 SECRET_KEY를 자동 생성할 수 없습니다."
+            echo "   수동으로 openssl rand -hex 32 명령어로 생성하세요."
+        fi
+    else
+        echo "ℹ️  SECRET_KEY가 이미 설정되어 있습니다."
+    fi
+fi
+
+echo ""
+echo "📝 다음 단계:"
+echo "   1. .env 파일을 열어 OPENAI_API_KEY를 실제 값으로 변경하세요"
+echo "   2. 필요시 다른 설정값들을 조정하세요"
+echo "   3. 파일 확인: cat .env | grep -E '(SECRET_KEY|OPENAI_API_KEY|DATABASE_URL|REDIS_URL)'"
+echo ""
+echo "✅ 환경 변수 설정 완료!"
+
