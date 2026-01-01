@@ -200,19 +200,61 @@ class EmbeddingService:
     
     def _create_embedding_sync(self, text: str):
         """동기적 임베딩 생성 (executor에서 사용)"""
-        return self.client.embeddings.create(
-            input=text,
-            model=self.model,
-            dimensions=self.dimensions
-        )
+        try:
+            # text-embedding-3 모델은 dimensions 파라미터 지원
+            # 하지만 일부 OpenAI 클라이언트 버전에서는 지원하지 않을 수 있음
+            if "text-embedding-3" in self.model:
+                try:
+                    return self.client.embeddings.create(
+                        input=text,
+                        model=self.model,
+                        dimensions=self.dimensions
+                    )
+                except TypeError:
+                    # dimensions 파라미터를 지원하지 않는 경우 기본 사용
+                    logger.warning("dimensions parameter not supported, using default")
+                    return self.client.embeddings.create(
+                        input=text,
+                        model=self.model
+                    )
+            else:
+                # 다른 모델은 dimensions 파라미터 미지원
+                return self.client.embeddings.create(
+                    input=text,
+                    model=self.model
+                )
+        except Exception as e:
+            logger.error(f"Error creating embedding: {e}")
+            raise
     
     def _create_embeddings_batch_sync(self, texts: List[str]):
         """동기적 배치 임베딩 생성 (executor에서 사용)"""
-        return self.client.embeddings.create(
-            input=texts,
-            model=self.model,
-            dimensions=self.dimensions
-        )
+        try:
+            # text-embedding-3 모델은 dimensions 파라미터 지원
+            # 하지만 일부 OpenAI 클라이언트 버전에서는 지원하지 않을 수 있음
+            if "text-embedding-3" in self.model:
+                try:
+                    return self.client.embeddings.create(
+                        input=texts,
+                        model=self.model,
+                        dimensions=self.dimensions
+                    )
+                except TypeError:
+                    # dimensions 파라미터를 지원하지 않는 경우 기본 사용
+                    logger.warning("dimensions parameter not supported, using default")
+                    return self.client.embeddings.create(
+                        input=texts,
+                        model=self.model
+                    )
+            else:
+                # 다른 모델은 dimensions 파라미터 미지원
+                return self.client.embeddings.create(
+                    input=texts,
+                    model=self.model
+                )
+        except Exception as e:
+            logger.error(f"Error creating batch embeddings: {e}")
+            raise
     
     def _get_cache_key(self, text: str) -> str:
         """캐시 키 생성"""

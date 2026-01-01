@@ -1,9 +1,10 @@
 import numpy as np
 from typing import List, Dict, Optional, Any
 from enum import Enum
+from sqlalchemy.orm import Session
 
 from .embedding_service import EmbeddingService
-from .vector_store import VectorStore
+from .sql_vector_store import SQLVectorStore
 from ..mmr_algorithm.mmr_scorer import ProductCandidate, RecommendationType
 from app.core.config import settings
 from app.core.logging import get_logger
@@ -12,24 +13,25 @@ logger = get_logger(__name__)
 
 
 class SearchEngine:
-    """상품 검색 엔진"""
+    """상품 검색 엔진 - SQL 기반 벡터 검색"""
     
-    def __init__(self):
+    def __init__(self, db: Optional[Session] = None):
+        """
+        검색 엔진 초기화
+        
+        Args:
+            db: SQLAlchemy 세션 (선택사항, 있으면 SQL 벡터 스토어 사용)
+        """
         self.embedding_service = EmbeddingService(
             api_key=settings.OPENAI_API_KEY,
             model=settings.EMBEDDING_MODEL,
             dimensions=settings.EMBEDDING_DIMENSIONS
         )
         
-        self.vector_store = VectorStore(
-            store_type=settings.VECTOR_DB_TYPE,
-            api_key=settings.PINECONE_API_KEY,
-            environment=settings.PINECONE_ENVIRONMENT,
-            index_name=settings.PINECONE_INDEX_NAME,
-            dimension=settings.EMBEDDING_DIMENSIONS
-        )
+        # SQL 기반 벡터 스토어 사용 (Pinecone 대체)
+        self.vector_store = SQLVectorStore(db=db)
         
-        logger.info("Search engine initialized")
+        logger.info("Search engine initialized", has_db=db is not None)
     
     async def search_products(
         self,
@@ -185,8 +187,24 @@ class SearchEngine:
         try:
             metadata = search_result.get("metadata", {})
             
-            # 상품 임베딩 재구성 (실제로는 벡터 DB에서 가져와야 함)
-            product_embedding = np.random.rand(settings.EMBEDDING_DIMENSIONS).astype(np.float32)
+            # 상품 임베딩 가져오기 (SQL에서 가져온 embedding 사용)
+            raw_embedding = search_result.get("embedding")
+            if isinstance(raw_embedding, np.ndarray):
+                product_embedding = raw_embedding
+            elif isinstance(raw_embedding, (list, tuple)):
+                product_embedding = np.array(raw_embedding, dtype=np.float32)
+            else:
+                logger.warning(f"Invalid embedding format for product {search_result.get('id')}")
+                return None  # 임베딩이 없으면 후보에서 제외
+
+            # 차원 확인 (차원이 맞지 않으면 경고만 하고 사용)
+            if product_embedding.shape[0] != settings.EMBEDDING_DIMENSIONS:
+                logger.warning(
+                    f"Embedding dimension mismatch for product {search_result.get('id')}: "
+                    f"expected {settings.EMBEDDING_DIMENSIONS}, got {product_embedding.shape[0]}. "
+                    f"Using actual dimension."
+                )
+                # 실제 차원을 사용 (차원이 다르면 유사도 계산은 가능하지만 정확도가 떨어질 수 있음)
             
             # 추천 유형 결정
             similarity_score = search_result.get("score", 0.0)

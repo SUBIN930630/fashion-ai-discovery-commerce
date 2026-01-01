@@ -24,6 +24,12 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 2rem;
+}
+
+.header-content > div:first-child {
+  flex-shrink: 0;
+  min-width: fit-content;
 }
 
 .header-logo {
@@ -32,6 +38,11 @@
   color: #111827;
   text-decoration: none;
   letter-spacing: -0.02em;
+  transition: color 0.2s;
+}
+
+.header-content > div:first-child:hover .header-logo {
+  color: #667eea;
 }
 
 .header-subtitle {

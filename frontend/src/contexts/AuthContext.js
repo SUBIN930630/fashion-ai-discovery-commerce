@@ -6,6 +6,9 @@ import React, { createContext, useState, useContext, useEffect } from 'react';
  */
 const AuthContext = createContext(null);
 
+// 데모 모드 플래그 (기본값: true)
+const isDemoMode = process.env.REACT_APP_DEMO_MODE !== 'false';
+
 /**
  * 테스트 계정 초기화 함수
  * 로컬 스토리지에 테스트 계정들을 생성합니다.
@@ -34,6 +37,7 @@ const initializeTestAccounts = () => {
         email: email,
         password: email, // 비밀번호도 demo01, demo02 등
         name: name,
+        role: 'user', // 일반 사용자 역할
         createdAt: new Date().toISOString()
       });
     }
@@ -50,6 +54,50 @@ const initializeTestAccounts = () => {
 };
 
 /**
+ * 관리자 계정 초기화 함수
+ * 로컬 스토리지에 관리자 계정들을 생성합니다.
+ */
+const initializeAdminAccounts = () => {
+  const existingUsers = JSON.parse(localStorage.getItem('users') || '[]');
+  
+  // 이미 초기화되었는지 확인
+  const isAdminInitialized = localStorage.getItem('admin_accounts_initialized');
+  
+  if (isAdminInitialized) {
+    return; // 이미 초기화됨
+  }
+
+  // 관리자 계정 10개 생성 (admin01 ~ admin10)
+  const adminAccounts = [];
+  for (let i = 1; i <= 10; i++) {
+    const num = String(i).padStart(2, '0'); // 01, 02, ..., 10
+    const email = `admin${num}`;
+    const name = `관리자 ${num}`;
+    
+    // 이미 존재하는 계정이 아닌 경우만 추가
+    if (!existingUsers.find(u => u.email === email)) {
+      adminAccounts.push({
+        id: `admin_${num}`,
+        email: email,
+        password: email, // 비밀번호도 admin01, admin02 등
+        name: name,
+        role: 'admin', // 관리자 역할
+        createdAt: new Date().toISOString()
+      });
+    }
+  }
+
+  // 기존 사용자 목록에 관리자 계정 추가
+  if (adminAccounts.length > 0) {
+    const updatedUsers = [...existingUsers, ...adminAccounts];
+    localStorage.setItem('users', JSON.stringify(updatedUsers));
+  }
+
+  // 초기화 완료 표시
+  localStorage.setItem('admin_accounts_initialized', 'true');
+};
+
+/**
  * AuthProvider - 인증 컨텍스트 제공자 컴포넌트
  * 로그인, 로그아웃, 회원가입 기능을 제공합니다.
  */
@@ -57,10 +105,15 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // 컴포넌트 마운트 시 테스트 계정 초기화 및 사용자 정보 로드
+  // 컴포넌트 마운트 시 테스트 계정 및 관리자 계정 초기화 및 사용자 정보 로드
   useEffect(() => {
-    // 테스트 계정 초기화
-    initializeTestAccounts();
+    if (isDemoMode) {
+      // 테스트 계정 초기화
+      initializeTestAccounts();
+      
+      // 관리자 계정 초기화
+      initializeAdminAccounts();
+    }
 
     // 로컬 스토리지에서 사용자 정보 로드
     const savedUser = localStorage.getItem('user');
@@ -105,6 +158,7 @@ export function AuthProvider({ children }) {
         id: `user_${Date.now()}`,
         email,
         name,
+        role: 'user', // 기본 역할은 일반 사용자
         createdAt: new Date().toISOString()
       };
 
@@ -154,6 +208,7 @@ export function AuthProvider({ children }) {
         id: foundUser.id,
         email: foundUser.email,
         name: foundUser.name,
+        role: foundUser.role || 'user', // 역할 정보 포함 (없으면 기본값 'user')
         createdAt: foundUser.createdAt
       };
 
@@ -181,7 +236,8 @@ export function AuthProvider({ children }) {
     signUp,
     signIn,
     signOut,
-    isAuthenticated: !!user
+    isAuthenticated: !!user,
+    isAdmin: user?.role === 'admin' // 관리자 여부 확인
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

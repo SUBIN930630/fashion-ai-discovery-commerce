@@ -2,11 +2,14 @@ from typing import List, Optional
 from fastapi import APIRouter, HTTPException, Depends, WebSocket, WebSocketDisconnect
 from pydantic import BaseModel
 from datetime import datetime
+from sqlalchemy.orm import Session
 
 from app.core.logging import get_logger
 from app.services.chat_service import ChatService
 from app.services.session_service import SessionService
+from app.services.chat_history_service import ChatHistoryService
 from app.models.chat import ChatMessage, ChatSession
+from app.database import get_db
 
 router = APIRouter()
 logger = get_logger(__name__)
@@ -30,11 +33,14 @@ class ChatHistoryResponse(BaseModel):
     created_at: datetime
 
 # Dependency
-def get_chat_service() -> ChatService:
-    return ChatService()
+def get_chat_service(db: Session = Depends(get_db)) -> ChatService:
+    return ChatService(db=db)
 
-def get_session_service() -> SessionService:
-    return SessionService()
+def get_session_service(db: Session = Depends(get_db)) -> SessionService:
+    return SessionService(db=db)
+
+def get_chat_history_service(db: Session = Depends(get_db)) -> ChatHistoryService:
+    return ChatHistoryService(db)
 
 @router.post("/message", response_model=ChatResponse)
 async def send_message(
@@ -66,6 +72,9 @@ async def send_message(
                    intent=response_data.get("intent"),
                    recommendations_count=len(response_data.get("recommendations", [])))
         
+        # 데이터베이스 저장은 chat_service.process_message 내부에서 처리됨
+        logger.debug("Message processed", session_id=session.session_id)
+        
         return ChatResponse(
             response=response_data["response"],
             session_id=session.session_id,
@@ -81,18 +90,33 @@ async def send_message(
 @router.get("/history/{session_id}", response_model=ChatHistoryResponse)
 async def get_chat_history(
     session_id: str,
-    session_service: SessionService = Depends(get_session_service)
+    session_service: SessionService = Depends(get_session_service),
+    chat_history_service: ChatHistoryService = Depends(get_chat_history_service)
 ):
     """특정 세션의 대화 히스토리를 반환"""
     try:
-        history = await session_service.get_chat_history(session_id)
+        history = await chat_history_service.get_session_chat_history(session_id)
         if not history:
             raise HTTPException(status_code=404, detail="세션을 찾을 수 없습니다.")
-        
+
+        session = await session_service.get_session(session_id)
+        created_at = session.created_at if session else history[0].created_at
+
+        messages = [
+            {
+                "id": h.id,
+                "role": h.role,
+                "content": h.content,
+                "metadata": h.meta_data,
+                "created_at": h.created_at.isoformat() if h.created_at else None,
+            }
+            for h in history
+        ]
+
         return ChatHistoryResponse(
             session_id=session_id,
-            messages=history["messages"],
-            created_at=history["created_at"]
+            messages=messages,
+            created_at=created_at
         )
         
     except HTTPException:

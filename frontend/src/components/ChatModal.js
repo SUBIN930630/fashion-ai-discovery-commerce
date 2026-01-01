@@ -1,7 +1,10 @@
 // 채팅 모달 컴포넌트
 import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import './ChatModal.css';
 import { chatService } from '../services/chatService';
+import { recommendationService } from '../services/recommendationService';
+import { useAuth } from '../contexts/AuthContext';
 
 /**
  * ChatModal 컴포넌트 - 모달 형태의 채팅 인터페이스
@@ -11,19 +14,39 @@ import { chatService } from '../services/chatService';
  * @param {Function} onClose - 모달 닫기 핸들러
  */
 function ChatModal({ isOpen, onClose }) {
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const [messages, setMessages] = useState([]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId, setSessionId] = useState(null);
-  const [userId] = useState(`user_${Date.now()}`);
+  const [isExpanded, setIsExpanded] = useState(false); // 확대/축소 상태
+  const [guestUserId] = useState(() => {
+    const storageKey = 'guest_user_id';
+    try {
+      const savedId = localStorage.getItem(storageKey);
+      if (savedId) {
+        return savedId;
+      }
+      const newId = `guest_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+      localStorage.setItem(storageKey, newId);
+      return newId;
+    } catch (error) {
+      return `guest_${Date.now()}`;
+    }
+  });
+  const userId = user?.id || guestUserId;
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const modalRef = useRef(null);
 
-  // 모달이 열릴 때 포커스 설정
+  // 모달이 열릴 때 포커스 설정 및 확대 상태 초기화
   useEffect(() => {
     if (isOpen) {
       inputRef.current?.focus();
+    } else {
+      // 모달이 닫힐 때 확대 상태 초기화
+      setIsExpanded(false);
     }
   }, [isOpen]);
 
@@ -31,6 +54,19 @@ function ChatModal({ isOpen, onClose }) {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // 입력창 높이 자동 조절
+  useEffect(() => {
+    if (inputRef.current) {
+      // 높이를 초기화하여 정확한 scrollHeight 계산
+      inputRef.current.style.height = 'auto';
+      // scrollHeight에 맞춰 높이 조절 (최소 1줄, 최대 6줄)
+      const maxHeight = 150; // 약 6줄 (25px * 6)
+      const minHeight = 25; // 약 1줄
+      const newHeight = Math.min(Math.max(inputRef.current.scrollHeight, minHeight), maxHeight);
+      inputRef.current.style.height = `${newHeight}px`;
+    }
+  }, [inputMessage]);
 
   // 컴포넌트 마운트 시 환영 메시지 표시
   useEffect(() => {
@@ -102,6 +138,18 @@ function ChatModal({ isOpen, onClose }) {
       };
 
       setMessages(prev => [...prev, assistantMessage]);
+
+      // 대화 내역을 로컬 스토리지에 저장
+      if (user?.id) {
+        const chatHistory = JSON.parse(localStorage.getItem(`chat_history_${user.id}`) || '[]');
+        chatHistory.push({
+          session_id: response.session_id || sessionId || `session_${Date.now()}`,
+          user_message: userMessage,
+          assistant_message: assistantMessage,
+          timestamp: new Date().toISOString()
+        });
+        localStorage.setItem(`chat_history_${user.id}`, JSON.stringify(chatHistory));
+      }
     } catch (error) {
       console.error('메시지 전송 오류:', error);
       
@@ -132,29 +180,60 @@ function ChatModal({ isOpen, onClose }) {
     return null;
   }
 
+  /**
+   * 확대/축소 토글 핸들러
+   */
+  const toggleExpand = (e) => {
+    e.stopPropagation(); // 이벤트 전파 방지
+    e.preventDefault(); // 기본 동작 방지
+    setIsExpanded(prev => !prev);
+  };
+
   return (
     <div className="chat-modal-overlay">
-      <div className="chat-modal" ref={modalRef}>
+      <div className={`chat-modal ${isExpanded ? 'expanded' : ''}`} ref={modalRef}>
         <div className="chat-modal-header">
           <div className="chat-modal-header-content">
-            <h3>패션 추천 챗봇</h3>
-            <p>원하시는 스타일을 알려주세요</p>
+            <h3>AI 스타일리스트 💬</h3>
           </div>
-          <button
-            className="chat-modal-close"
-            onClick={onClose}
-            aria-label="채팅 닫기"
-          >
-            <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-              <path
-                d="M15 5L5 15M5 5L15 15"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </button>
+          <div className="chat-modal-header-actions">
+            {/* 확대/축소 버튼 */}
+            <button
+              className="chat-modal-expand"
+              onClick={toggleExpand}
+              aria-label={isExpanded ? '축소' : '확대'}
+              title={isExpanded ? '축소' : '확대'}
+            >
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <rect
+                  x="4"
+                  y="4"
+                  width="12"
+                  height="12"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+            {/* 닫기 버튼 */}
+            <button
+              className="chat-modal-close"
+              onClick={onClose}
+              aria-label="채팅 닫기"
+            >
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path
+                  d="M15 5L5 15M5 5L15 15"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+          </div>
         </div>
 
         <div className="chat-modal-messages">
@@ -168,9 +247,42 @@ function ChatModal({ isOpen, onClose }) {
                 {message.recommendations && message.recommendations.length > 0 && (
                   <div className="chat-recommendations">
                     <p className="chat-recommendations-title">추천 상품:</p>
-                    <ul>
+                    <ul className="chat-recommendations-list">
                       {message.recommendations.map((rec, idx) => (
-                        <li key={idx}>{rec.name || rec.product_id}</li>
+                        <li key={idx} className="chat-recommendation-item">
+                          <button
+                            className="chat-recommendation-link"
+                            onClick={() => {
+                              if (rec.product_url) {
+                                // 클릭 로그 전송 (문서 규칙: 클릭 안 한 상품 제외를 위한 로그 수집)
+                                const userId = user?.id || guestUserId;
+                                if (rec.id || rec.product_id) {
+                                  recommendationService.recordClick(
+                                    userId,
+                                    rec.id || rec.product_id
+                                  );
+                                }
+                                
+                                navigate(rec.product_url);
+                                onClose(); // 챗봇 모달 닫기
+                              }
+                            }}
+                          >
+                            <span className="chat-recommendation-name">
+                              {rec.name || rec.product_id}
+                            </span>
+                            {rec.brand && (
+                              <span className="chat-recommendation-brand">
+                                {rec.brand}
+                              </span>
+                            )}
+                            {rec.price && (
+                              <span className="chat-recommendation-price">
+                                {new Intl.NumberFormat('ko-KR').format(rec.price)}원
+                              </span>
+                            )}
+                          </button>
+                        </li>
                       ))}
                     </ul>
                   </div>
@@ -202,6 +314,12 @@ function ChatModal({ isOpen, onClose }) {
             placeholder="메시지를 입력하세요..."
             rows={1}
             disabled={isLoading}
+            style={{
+              resize: 'none',
+              overflow: 'hidden',
+              minHeight: '25px',
+              maxHeight: '150px'
+            }}
           />
           <button
             className="chat-modal-send-button"
@@ -217,4 +335,3 @@ function ChatModal({ isOpen, onClose }) {
 }
 
 export default ChatModal;
-

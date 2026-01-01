@@ -67,12 +67,14 @@ function ProductCard({ product, onClick }) {
     <div className="product-card" onClick={handleClick}>
       <div className="product-image-container">
         <img 
-          src={product.image_url} 
+          src={product.image_url || 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=600&h=800&fit=crop'} 
           alt={product.name}
           className="product-image"
+          loading="lazy"
           onError={(e) => {
-            // 이미지 로드 실패 시 플레이스홀더 표시
-            e.target.src = 'https://via.placeholder.com/300x400?text=No+Image';
+            // 이미지 로드 실패 시 기본 의류 이미지로 대체
+            e.target.src = 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=600&h=800&fit=crop';
+            e.target.onerror = null; // 무한 루프 방지
           }}
         />
         {/* 좋아요 버튼 */}

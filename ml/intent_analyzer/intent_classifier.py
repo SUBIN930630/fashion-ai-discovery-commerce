@@ -1,4 +1,6 @@
 import json
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from typing import Dict, List, Optional, Tuple
 from enum import Enum
 import openai
@@ -30,9 +32,10 @@ class IntentResult(BaseModel):
 class IntentClassifier:
     """사용자 의도 분석 클래스"""
     
-    def __init__(self, api_key: str, model: str = "gpt-4-turbo"):
+    def __init__(self, api_key: str, model: str = "gpt-4o-mini"):
         self.client = openai.OpenAI(api_key=api_key)
         self.model = model
+        self.executor = ThreadPoolExecutor(max_workers=4)
         
     async def classify_intent(
         self, 
@@ -56,14 +59,15 @@ class IntentClassifier:
         prompt = self._build_prompt(user_message, chat_history, user_profile)
         
         try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0.1,  # 일관성을 위해 낮은 temperature
-                max_tokens=800
+            try:
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                loop = asyncio.get_event_loop()
+
+            response = await loop.run_in_executor(
+                self.executor,
+                self._create_completion_sync,
+                prompt,
             )
             
             # JSON 응답 파싱
@@ -90,6 +94,18 @@ class IntentClassifier:
                 keywords=[],
                 reasoning=f"분석 중 오류 발생: {str(e)}"
             )
+
+    def _create_completion_sync(self, prompt: str):
+        """동기 호출을 스레드에서 실행하기 위한 래퍼"""
+        return self.client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0.1,  # 일관성을 위해 낮은 temperature
+            max_tokens=800,
+        )
     
     def _build_prompt(
         self, 

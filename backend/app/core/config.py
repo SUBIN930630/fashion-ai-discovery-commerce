@@ -27,19 +27,19 @@ class Settings(BaseSettings):
     
     # OpenAI
     OPENAI_API_KEY: str = Field(default="sk-test-key", env="OPENAI_API_KEY")
-    OPENAI_MODEL: str = Field(default="gpt-4-turbo", env="OPENAI_MODEL")
+    OPENAI_MODEL: str = Field(default="gpt-4o-mini", env="OPENAI_MODEL")
     
     # Embedding
     EMBEDDING_MODEL: str = Field(default="text-embedding-3-large", env="EMBEDDING_MODEL")
-    EMBEDDING_DIMENSIONS: int = Field(default=1536, env="EMBEDDING_DIMENSIONS")
+    EMBEDDING_DIMENSIONS: int = Field(default=3072, env="EMBEDDING_DIMENSIONS")  # text-embedding-3-large 기본 차원
     
-    # Vector Database
-    VECTOR_DB_TYPE: str = Field(default="pinecone", env="VECTOR_DB_TYPE")
-    PINECONE_API_KEY: Optional[str] = Field(default=None, env="PINECONE_API_KEY")
-    PINECONE_ENVIRONMENT: Optional[str] = Field(default=None, env="PINECONE_ENVIRONMENT")
-    PINECONE_INDEX_NAME: Optional[str] = Field(default="fashion-products", env="PINECONE_INDEX_NAME")
-    WEAVIATE_URL: Optional[str] = Field(default="http://localhost:8080", env="WEAVIATE_URL")
-    WEAVIATE_API_KEY: Optional[str] = Field(default=None, env="WEAVIATE_API_KEY")
+    # Vector Database (SQL 기반으로 변경 - Pinecone/Weaviate 사용 안 함)
+    # VECTOR_DB_TYPE: str = Field(default="sql", env="VECTOR_DB_TYPE")  # SQL 기반 사용
+    # PINECONE_API_KEY: Optional[str] = Field(default=None, env="PINECONE_API_KEY")  # 사용 안 함
+    # PINECONE_ENVIRONMENT: Optional[str] = Field(default=None, env="PINECONE_ENVIRONMENT")  # 사용 안 함
+    # PINECONE_INDEX_NAME: Optional[str] = Field(default="fashion-products", env="PINECONE_INDEX_NAME")  # 사용 안 함
+    # WEAVIATE_URL: Optional[str] = Field(default="http://localhost:8080", env="WEAVIATE_URL")  # 사용 안 함
+    # WEAVIATE_API_KEY: Optional[str] = Field(default=None, env="WEAVIATE_API_KEY")  # 사용 안 함
     
     # CORS
     ALLOWED_HOSTS: List[str] = Field(default=["*"])
@@ -86,6 +86,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         case_sensitive = True
+        extra = "ignore"  # 정의되지 않은 환경 변수는 무시
 
 
 # Global settings instance

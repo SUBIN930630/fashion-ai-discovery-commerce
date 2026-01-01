@@ -55,6 +55,12 @@ class PromptTemplateManager:
 - 새로운 발견: 70% (기존에 추천하지 않았던 상품, 새로운 스타일)
 - 기존 취향: 30% (사용자가 좋아했던 스타일 기반)
 
+### 사용자 정보 활용
+- 사용자의 좋아요 목록을 참고하여 이미 좋아한 상품과 유사하거나 대조되는 상품 추천
+- 장바구니에 담은 상품 정보를 활용하여 코디 추천이나 추가 아이템 제안
+- 전체 사용자들의 인기 상품 데이터를 참고하여 트렌드 반영
+- 사용자가 이미 좋아요/장바구니에 담은 상품은 중복 추천하지 않음
+
 ### 응답 구조 (4단계)
 1. 공감 + 의도 확인
 2. 새로운 발견 추천 (70%)
@@ -106,7 +112,7 @@ class PromptTemplateManager:
 
 이번에는 평소 스타일과 조금 다른 아이템도 함께 추천드릴게요!
 
-{% for item in new_discoveries[:3] %}
+{% for item in new_discoveries %}
 {{ loop.index }}. **{{ item.name }}** - {{ "{:,}".format(item.price) }}원
    - {{ item.brand }}
    - {% if item.recommendation_type == "exploration" %}평소와 다른 새로운 스타일이에요!{% elif item.recommendation_type == "bridge" %}기존 취향과 비슷하지만 새로운 무드를 더했어요!{% endif %}
@@ -117,8 +123,8 @@ class PromptTemplateManager:
 {% if existing_preferences %}
 🏠 **내 취향**
 
-{% for item in existing_preferences[:2] %}
-{{ loop.index + 3 }}. **{{ item.name }}** - {{ "{:,}".format(item.price) }}원
+{% for item in existing_preferences %}
+{{ loop.index + (new_discoveries|length) + 1 }}. **{{ item.name }}** - {{ "{:,}".format(item.price) }}원
    - 평소 좋아하시는 스타일과 비슷해요
 {% endfor %}
 {% endif %}
@@ -135,7 +141,7 @@ class PromptTemplateManager:
 
 예산 내에서 새로운 스타일도 도전해보세요!
 
-{% for item in new_discoveries[:4] %}
+{% for item in new_discoveries %}
 {{ loop.index }}. **{{ item.name }}** - {{ "{:,}".format(item.price) }}원
    - {{ item.brand }}
    - 새로운 스타일이지만 활용도가 높아요!
@@ -146,8 +152,8 @@ class PromptTemplateManager:
 🏠 **안전한 선택**
 
 물론 평소 스타일도 준비했어요 😊
-{% for item in existing_preferences[:2] %}
-{{ loop.index + 4 }}. **{{ item.name }}** - {{ "{:,}".format(item.price) }}원
+{% for item in existing_preferences %}
+{{ loop.index + (new_discoveries|length) }}. **{{ item.name }}** - {{ "{:,}".format(item.price) }}원
 {% endfor %}
 {% endif %}
 
@@ -165,7 +171,7 @@ class PromptTemplateManager:
 
 평소 보시던 스타일 + 새로운 브랜드도 함께 추천드려요!
 
-{% for item in new_discoveries[:3] %}
+{% for item in new_discoveries %}
 {{ loop.index }}. **{{ item.name }}**
    - {{ item.brand }} (새로운 브랜드)
    - {% if item.recommendation_type == "exploration" %}평소 스타일과는 살짝 다르지만, 요즘 트렌드예요!{% elif item.recommendation_type == "bridge" %}기존 취향 + 새로운 무드를 더해봤어요!{% endif %}
@@ -176,8 +182,8 @@ class PromptTemplateManager:
 {% if existing_preferences %}
 🏠 **내 취향**
 
-{% for item in existing_preferences[:2] %}
-{{ loop.index + 3 }}. **{{ item.name }}**
+{% for item in existing_preferences %}
+{{ loop.index + (new_discoveries|length) }}. **{{ item.name }}**
    - 이전에 좋아하셨던 스타일과 비슷해요
 {% endfor %}
 {% endif %}
@@ -194,7 +200,7 @@ class PromptTemplateManager:
 
 평소와 다른 무드로 시도해볼 만한 스타일들이에요!
 
-{% for item in new_discoveries[:4] %}
+{% for item in new_discoveries %}
 {{ loop.index }}. **{{ item.name }}**
    - {{ item.brand }}
    - {% if "미니멀" in (user_style.keys() | list) %}미니멀 좋아하시는 분들이 새로 시도하는 스타일!{% else %}요즘 {{ (user_style.keys() | list)[0] if user_style else "스타일리시한" }} 좋아하시는 분들 사이에서 인기!{% endif %}
@@ -205,8 +211,8 @@ class PromptTemplateManager:
 🏠 **기존 스타일**
 
 물론 안전한 스타일도 준비했어요
-{% for item in existing_preferences[:2] %}
-{{ loop.index + 4 }}. **{{ item.name }}**
+{% for item in existing_preferences %}
+{{ loop.index + (new_discoveries|length) }}. **{{ item.name }}**
 {% endfor %}
 {% endif %}
 
@@ -223,7 +229,7 @@ class PromptTemplateManager:
 
 올 시즌에는 새로운 스타일도 도전해보세요!
 
-{% for item in new_discoveries[:3] %}
+{% for item in new_discoveries %}
 {{ loop.index }}. **{{ item.name }}**
    - {{ item.brand }}
    - {% if "봄" in user_message %}봄에 딱 맞는 가벼운 소재예요{% elif "여름" in user_message %}시원하고 통기성이 좋아요{% elif "가을" in user_message %}적당한 보온성으로 가을에 완벽해요{% elif "겨울" in user_message %}따뜻하면서도 스타일리시해요{% endif %}
@@ -232,8 +238,8 @@ class PromptTemplateManager:
 
 🏠 **내 취향**
 
-{% for item in existing_preferences[:2] %}
-{{ loop.index + 3 }}. **{{ item.name }}**
+{% for item in existing_preferences %}
+{{ loop.index + (new_discoveries|length) }}. **{{ item.name }}**
    - 평소 좋아하시는 스타일과 비슷해요
 {% endfor %}
 
@@ -249,7 +255,7 @@ class PromptTemplateManager:
 
 이번 시즌 트렌드를 미리 만나보세요!
 
-{% for item in new_discoveries[:4] %}
+{% for item in new_discoveries %}
 {{ loop.index }}. **{{ item.name }}**
    - {{ item.brand }}
    - 새로운 시즌 트렌드 아이템
@@ -258,8 +264,8 @@ class PromptTemplateManager:
 
 🏠 **클래식한 선택**
 
-{% for item in existing_preferences[:2] %}
-{{ loop.index + 4 }}. **{{ item.name }}**
+{% for item in existing_preferences %}
+{{ loop.index + (new_discoveries|length) }}. **{{ item.name }}**
 {% endfor %}
 
 실내외 온도차를 고려하신 건가요?
@@ -274,7 +280,7 @@ class PromptTemplateManager:
 
 체형에 맞으면서도 새로운 스타일로 시도해볼 만한 아이템들이에요!
 
-{% for item in new_discoveries[:3] %}
+{% for item in new_discoveries %}
 {{ loop.index }}. **{{ item.name }}**
    - {{ item.brand }}
    - {% if "키" in user_message %}비율이 깔끔해 보이는 핏이에요{% else %}체형 커버에 좋은 디자인{% endif %}
@@ -283,8 +289,8 @@ class PromptTemplateManager:
 
 🏠 **내 취향**
 
-{% for item in existing_preferences[:2] %}
-{{ loop.index + 3 }}. **{{ item.name }}**
+{% for item in existing_preferences %}
+{{ loop.index + (new_discoveries|length) }}. **{{ item.name }}**
    - 평소 좋아하시는 핏과 비슷해요
 {% endfor %}
 
@@ -300,7 +306,7 @@ class PromptTemplateManager:
 
 체형 보완 + 새로운 스타일을 동시에!
 
-{% for item in new_discoveries[:4] %}
+{% for item in new_discoveries %}
 {{ loop.index }}. **{{ item.name }}**
    - {{ item.brand }}
    - 체형 보완 효과가 있으면서도 트렌디해요
@@ -309,8 +315,8 @@ class PromptTemplateManager:
 
 🏠 **안전한 핏**
 
-{% for item in existing_preferences[:2] %}
-{{ loop.index + 4 }}. **{{ item.name }}**
+{% for item in existing_preferences %}
+{{ loop.index + (new_discoveries|length) }}. **{{ item.name }}**
 {% endfor %}
 
 편안한 핏 vs 딱 맞는 핏 중 어떤 걸 선호하세요?
@@ -326,7 +332,7 @@ class PromptTemplateManager:
 
 매일 비슷한 출근룩이 지겹다면, 이런 변화는 어떠세요?
 
-{% for item in new_discoveries[:3] %}
+{% for item in new_discoveries %}
 {{ loop.index }}. **{{ item.name }}**
    - {{ item.brand }}
    - {% if "셔츠" in item.name %}셔츠 대신 이런 스타일로 편안하면서 깔끔해요{% else %}출근룩에 새로운 무드를 줄 수 있어요!{% endif %}
@@ -335,7 +341,7 @@ class PromptTemplateManager:
 {% elif new_discoveries %}
 💡 **새로운 발견**
 
-{% for item in new_discoveries[:3] %}
+{% for item in new_discoveries %}
 {{ loop.index }}. **{{ item.name }}**
    - {{ item.brand }}
    - 상황에 적합하면서도 새로운 스타일이에요
@@ -344,8 +350,8 @@ class PromptTemplateManager:
 
 🏠 **내 취향**
 
-{% for item in existing_preferences[:2] %}
-{{ loop.index + 3 }}. **{{ item.name }}**
+{% for item in existing_preferences %}
+{{ loop.index + (new_discoveries|length) }}. **{{ item.name }}**
    - 무난하고 안전한 조합이에요
 {% endfor %}
 
@@ -361,7 +367,7 @@ class PromptTemplateManager:
 
 상황은 고려하되, 새로운 무드도 시도해보세요!
 
-{% for item in new_discoveries[:4] %}
+{% for item in new_discoveries %}
 {{ loop.index }}. **{{ item.name }}**
    - {{ item.brand }}
    - 상황에 적절하면서도 개성 있는 스타일
@@ -370,8 +376,8 @@ class PromptTemplateManager:
 
 🏠 **안전한 선택**
 
-{% for item in existing_preferences[:2] %}
-{{ loop.index + 4 }}. **{{ item.name }}**
+{% for item in existing_preferences %}
+{{ loop.index + (new_discoveries|length) }}. **{{ item.name }}**
 {% endfor %}
 
 편안한 느낌 vs 세련된 느낌 중 어떤 쪽을 원하시나요?
@@ -387,7 +393,7 @@ class PromptTemplateManager:
 
 이번에는 새로운 스타일도 추천드릴게요!
 
-{% for item in new_discoveries[:3] %}
+{% for item in new_discoveries %}
 {{ loop.index }}. **{{ item.name }}**
    - {{ item.brand }}
    - 평소와 다른 새로운 시도!
@@ -397,7 +403,7 @@ class PromptTemplateManager:
 {% if existing_preferences %}
 🏠 **내 취향**
 
-{% for item in existing_preferences[:2] %}
+{% for item in existing_preferences %}
 {{ loop.index + (new_discoveries|length) }}. **{{ item.name }}**
    - 평소 좋아하시는 스타일과 비슷해요
 {% endfor %}

@@ -5,6 +5,7 @@
   gap: 1.5rem;
   flex: 1;
   justify-content: flex-end;
+  min-width: 0; /* flex 아이템이 줄어들 수 있도록 */
 }
 
 .header-actions {
@@ -17,6 +18,8 @@
   font-size: 0.875rem;
   color: #374151;
   font-weight: 500;
+  white-space: nowrap;
+  min-width: fit-content;
 }
 
 .header-button {
@@ -53,11 +56,28 @@
 
 .logout-button {
   color: #6b7280;
+  white-space: nowrap;
+  min-width: fit-content;
 }
 
 .logout-button:hover {
   background-color: #f3f4f6;
   color: #111827;
+}
+
+.mypage-button {
+  background-color: #ffffff;
+  border: 1px solid #d1d5db;
+  color: #111827;
+  padding: 0.5rem 0.75rem;
+  white-space: nowrap;
+  min-width: fit-content;
+}
+
+.mypage-button:hover {
+  background-color: #f9fafb;
+  color: #111827;
+  border: 1px solid #d1d5db;
 }
 
 .cart-button {
@@ -97,6 +117,19 @@
 
 .favorites-button:hover {
   color: #ef4444;
+}
+
+.admin-button {
+  background-color: #dc2626;
+  color: white;
+  border-color: #dc2626;
+  white-space: nowrap;
+  min-width: fit-content;
+}
+
+.admin-button:hover {
+  background-color: #b91c1c;
+  border-color: #b91c1c;
 }
 
 @media (max-width: 768px) {

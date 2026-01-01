@@ -6,9 +6,18 @@ import uvicorn
 from app.core.config import settings
 from app.core.logging import setup_logging
 from app.api.api_v1.api import api_router
+from app.database import engine, Base
+import app.models.db_models  # noqa: F401
 
 # Setup logging
 setup_logging()
+
+# Create database tables (연결 실패 시에도 앱은 시작됨)
+try:
+    Base.metadata.create_all(bind=engine)
+except Exception as e:
+    import logging
+    logging.warning(f"Database initialization failed: {e}. App will continue, but database features may not work.")
 
 # Create FastAPI app
 app = FastAPI(

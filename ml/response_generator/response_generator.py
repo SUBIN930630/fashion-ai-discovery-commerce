@@ -1,5 +1,7 @@
 import openai
 import json
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 from typing import List, Dict, Optional, Any
 from jinja2 import Template
 
@@ -13,10 +15,11 @@ logger = get_logger(__name__)
 class ResponseGenerator:
     """AI 응답 생성기"""
     
-    def __init__(self, api_key: str, model: str = "gpt-4-turbo"):
+    def __init__(self, api_key: str, model: str = "gpt-4o-mini"):
         self.client = openai.OpenAI(api_key=api_key)
         self.model = model
         self.template_manager = PromptTemplateManager()
+        self.executor = ThreadPoolExecutor(max_workers=4)
         
         logger.info("Response generator initialized", model=model)
     
@@ -62,14 +65,15 @@ class ResponseGenerator:
             prompt = self.template_manager.render_template(template_name, context)
             
             # 4. GPT API 호출
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[
-                    {"role": "system", "content": self.template_manager.get_system_prompt()},
-                    {"role": "user", "content": prompt}
-                ],
-                temperature=0.7,
-                max_tokens=settings.MAX_RESPONSE_LENGTH
+            try:
+                loop = asyncio.get_running_loop()
+            except RuntimeError:
+                loop = asyncio.get_event_loop()
+
+            response = await loop.run_in_executor(
+                self.executor,
+                self._create_completion_sync,
+                prompt,
             )
             
             ai_response = response.choices[0].message.content
@@ -89,6 +93,18 @@ class ResponseGenerator:
             
             # 에러 시 기본 응답
             return self._get_fallback_response(intent_result, recommendations)
+
+    def _create_completion_sync(self, prompt: str):
+        """동기 호출을 스레드에서 실행하기 위한 래퍼"""
+        return self.client.chat.completions.create(
+            model=self.model,
+            messages=[
+                {"role": "system", "content": self.template_manager.get_system_prompt()},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0.7,
+            max_tokens=settings.MAX_RESPONSE_LENGTH,
+        )
     
     def _select_template(self, intent_result: Any, recommendations: List[Dict]) -> str:
         """의도와 추천 결과에 따라 적절한 템플릿 선택"""
@@ -134,24 +150,49 @@ class ResponseGenerator:
             else:
                 existing_preferences.append(rec)
         
+        # 문서 규칙: 새로운 발견 70%, 기존 취향 30% 비율 계산
+        total_count = len(recommendations)
+        new_discoveries_target = max(1, int(total_count * 0.7))  # 최소 1개
+        existing_preferences_target = max(1, total_count - new_discoveries_target)  # 최소 1개
+        
+        # 실제 개수와 목표 개수 중 작은 값 사용
+        new_discoveries_display = new_discoveries[:new_discoveries_target]
+        existing_preferences_display = existing_preferences[:existing_preferences_target]
+        
         context = {
             "user_message": user_message,
             "intent": intent_result.intent.value,
             "confidence": intent_result.confidence,
             "exploration_intent": getattr(intent_result, 'exploration_intent', False),
             "keywords": getattr(intent_result, 'keywords', []),
-            "new_discoveries": new_discoveries,
-            "existing_preferences": existing_preferences,
+            "new_discoveries": new_discoveries_display,  # 70% 비율로 제한된 리스트
+            "existing_preferences": existing_preferences_display,  # 30% 비율로 제한된 리스트
+            "new_discoveries_all": new_discoveries,  # 전체 리스트 (필요시 사용)
+            "existing_preferences_all": existing_preferences,  # 전체 리스트 (필요시 사용)
             "total_recommendations": len(recommendations),
+            "new_discoveries_count": len(new_discoveries_display),
+            "existing_preferences_count": len(existing_preferences_display),
             "use_emojis": settings.USE_EMOJIS
         }
         
-        # 사용자 프로필 정보 추가
+        # 사용자 프로필 정보 추가 (좋아요, 장바구니 정보 포함)
         if user_profile:
             context.update({
                 "user_style": user_profile.get("style_distribution", {}),
                 "preferred_categories": user_profile.get("preferred_categories", []),
-                "price_range": user_profile.get("price_range", {})
+                "price_range": user_profile.get("price_range", {}),
+                # 좋아요 정보
+                "user_favorites": user_profile.get("favorites", []),
+                "user_favorite_product_ids": user_profile.get("favorite_product_ids", []),
+                "user_favorites_count": user_profile.get("stats", {}).get("favorites_count", 0),
+                # 장바구니 정보
+                "user_cart_items": user_profile.get("cart_items", []),
+                "user_cart_product_ids": user_profile.get("cart_product_ids", []),
+                "user_cart_count": user_profile.get("stats", {}).get("cart_items_count", 0),
+                "user_cart_total_price": user_profile.get("stats", {}).get("cart_total_price", 0),
+                # 전체 사용자 통계 (인기 상품 등)
+                "popular_products": user_profile.get("popular_products", []),
+                "global_stats": user_profile.get("global_stats", {})
             })
         
         # 대화 히스토리 정보 추가
@@ -175,7 +216,14 @@ class ResponseGenerator:
         return topics
     
     def _post_process_response(self, response: str, intent_result: Any) -> str:
-        """응답 후처리"""
+        """
+        응답 후처리
+        문서 규칙: 최대 2개 질문 (3개 이상 연속 질문 금지)
+        """
+        import re
+        
+        # 문서 규칙: 꼬리질문 개수 제한 (최대 2개)
+        response = self._limit_question_count(response)
         
         # 이모지 사용 설정에 따른 처리
         if not settings.USE_EMOJIS:
@@ -189,6 +237,94 @@ class ResponseGenerator:
         response = self._apply_safety_filters(response)
         
         return response.strip()
+    
+    def _limit_question_count(self, response: str) -> str:
+        """
+        질문 개수 제한 (문서 규칙: 최대 2개)
+        
+        Args:
+            response: 원본 응답 텍스트
+            
+        Returns:
+            질문 개수가 2개 이하로 제한된 응답
+        """
+        import re
+        
+        # 질문 마커 찾기 (?, ?!, ?? 등)
+        question_pattern = r'[?？][!！]*'
+        question_matches = list(re.finditer(question_pattern, response))
+        
+        question_count = len(question_matches)
+        
+        # 문서 규칙: 최대 2개 질문
+        if question_count <= 2:
+            logger.debug("Question count within limit", count=question_count)
+            return response
+        
+        logger.warning("Question count exceeds limit, limiting to 2",
+                      original_count=question_count,
+                      limit=2)
+        
+        # 2개 초과 시 마지막 2개 질문만 유지
+        # 문장 단위로 분리하여 처리
+        # 문장 구분자: . ! ? (한글/영문 모두)
+        sentence_endings = r'([.!?。！？]\s*)'
+        parts = re.split(sentence_endings, response)
+        
+        # 질문이 포함된 문장 인덱스 찾기
+        question_sentence_indices = []
+        current_text = ""
+        
+        for i, part in enumerate(parts):
+            current_text += part
+            # 문장 끝을 만나면 확인
+            if re.search(r'[.!?。！？]', part):
+                if re.search(question_pattern, current_text):
+                    question_sentence_indices.append(i)
+                current_text = ""
+        
+        # 마지막 부분도 확인
+        if current_text and re.search(question_pattern, current_text):
+            question_sentence_indices.append(len(parts) - 1)
+        
+        # 마지막 2개 질문 문장만 유지
+        if len(question_sentence_indices) > 2:
+            # 마지막 2개 질문 문장의 인덱스
+            last_two_indices = question_sentence_indices[-2:]
+            first_question_idx = last_two_indices[0]
+            
+            # 첫 번째 질문 문장 이전의 모든 문장은 유지
+            # 첫 번째 질문 문장부터 마지막 질문 문장까지 유지
+            result_parts = []
+            for i, part in enumerate(parts):
+                if i <= last_two_indices[-1]:
+                    result_parts.append(part)
+                else:
+                    break
+            
+            response = ''.join(result_parts).strip()
+        else:
+            # 질문이 2개 이하면 그대로 유지 (이미 위에서 처리됨)
+            pass
+        
+        # 최종 검증
+        final_questions = list(re.finditer(question_pattern, response))
+        final_count = len(final_questions)
+        
+        if final_count > 2:
+            # 여전히 2개 초과면 가장 간단한 방법: 마지막 질문만 유지
+            if final_questions:
+                last_question_end = final_questions[-1].end()
+                # 마지막 질문 이전의 텍스트도 유지하되, 중간 질문은 제거
+                # 간단하게: 마지막 질문이 포함된 문장만 유지
+                response = response[:last_question_end]
+                logger.info("Applied strict question limit", final_count=1)
+        else:
+            logger.info("Question count limited successfully",
+                       original_count=question_count,
+                       final_count=final_count)
+        
+        return response
     
     def _remove_emojis(self, text: str) -> str:
         """텍스트에서 이모지 제거"""

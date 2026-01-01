@@ -1,5 +1,6 @@
 // 헤더 컴포넌트
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import './Header.css';
 import { useAuth } from '../contexts/AuthContext';
 import { useCart } from '../contexts/CartContext';
@@ -13,7 +14,8 @@ import FavoritesModal from './FavoritesModal';
  * 로그인/회원가입, 장바구니 기능을 포함합니다.
  */
 function Header({ onSearch }) {
-  const { user, signOut, isAuthenticated } = useAuth();
+  const navigate = useNavigate();
+  const { user, signOut, isAuthenticated, isAdmin } = useAuth();
   const { cartCount } = useCart();
   const { favoritesCount } = useFavorites();
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -48,7 +50,7 @@ function Header({ onSearch }) {
     <>
       <header className="app-header">
         <div className="header-content">
-          <div>
+          <div onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>
             <h1 className="header-logo">Fashion AI Discovery</h1>
             <p className="header-subtitle">당신만의 스타일을 찾아보세요</p>
           </div>
@@ -63,7 +65,23 @@ function Header({ onSearch }) {
             <div className="header-actions">
               {isAuthenticated ? (
                 <>
-                  <span className="header-user-name">{user.name}님</span>
+                  <span className="header-user-name">{user.name}님 {isAdmin && '[관리자]'}</span>
+                  <button
+                    className="header-button mypage-button"
+                    onClick={() => navigate('/mypage')}
+                    aria-label="마이페이지"
+                  >
+                    마이페이지
+                  </button>
+                  {isAdmin && (
+                    <button
+                      className="header-button admin-button"
+                      onClick={() => navigate('/admin')}
+                      aria-label="관리자 대시보드"
+                    >
+                      관리자 모드
+                    </button>
+                  )}
                   <button
                     className="header-button favorites-button"
                     onClick={() => setIsFavoritesModalOpen(true)}

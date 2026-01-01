@@ -242,7 +242,10 @@ class MMRScorer:
         candidates: List[ProductCandidate],
         selected: List[ProductCandidate]
     ) -> Optional[ProductCandidate]:
-        """현재 후보들 중에서 MMR 점수가 가장 높은 상품 선택"""
+        """
+        현재 후보들 중에서 MMR 점수가 가장 높은 상품 선택
+        문서 규칙: 같은 브랜드는 최대 2개까지만 추천
+        """
         
         if not candidates:
             return None
@@ -251,6 +254,13 @@ class MMRScorer:
         best_mmr_score = -1
         
         for candidate in candidates:
+            # 브랜드 제한 체크 (문서 규칙: 동일 브랜드 최대 2개)
+            if not self._check_brand_limit(candidate, selected, max_brands=2):
+                logger.debug("Candidate excluded due to brand limit",
+                           product_id=candidate.id,
+                           brand=candidate.metadata.get("brand", "unknown"))
+                continue
+            
             mmr_score = self._calculate_mmr_score(
                 query_embedding, candidate, selected
             )
@@ -263,6 +273,39 @@ class MMRScorer:
                 best_candidate = candidate
         
         return best_candidate
+    
+    def _check_brand_limit(
+        self,
+        candidate: ProductCandidate,
+        selected: List[ProductCandidate],
+        max_brands: int = 2
+    ) -> bool:
+        """
+        브랜드 제한 체크
+        문서 규칙: 동일 브랜드 상품은 최대 2개까지만 추천
+        
+        Args:
+            candidate: 검사할 후보 상품
+            selected: 이미 선택된 상품 리스트
+            max_brands: 브랜드당 최대 개수 (기본값: 2)
+            
+        Returns:
+            bool: 브랜드 제한을 통과하면 True, 아니면 False
+        """
+        candidate_brand = candidate.metadata.get("brand", "")
+        
+        # 브랜드가 없으면 제한 없음
+        if not candidate_brand:
+            return True
+        
+        # 이미 선택된 상품 중 같은 브랜드 개수 계산
+        brand_count = sum(
+            1 for p in selected 
+            if p.metadata.get("brand", "") == candidate_brand
+        )
+        
+        # 최대 개수 미만이면 통과
+        return brand_count < max_brands
     
     def _calculate_mmr_score(
         self,

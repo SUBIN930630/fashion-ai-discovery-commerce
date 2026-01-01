@@ -16,7 +16,9 @@ services:
       - redis
     volumes:
       - ./backend:/app
+      - ./ml:/ml
       - ./logs:/app/logs
+    working_dir: /app
     networks:
       - fashion-network
 

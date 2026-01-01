@@ -1,5 +1,6 @@
 // 장바구니 모달 컴포넌트
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import './CartModal.css';
 import { useCart } from '../contexts/CartContext';
 
@@ -10,6 +11,7 @@ import { useCart } from '../contexts/CartContext';
  * @param {Function} onClose - 모달 닫기 핸들러
  */
 function CartModal({ isOpen, onClose }) {
+  const navigate = useNavigate();
   const { cartItems, removeFromCart, updateQuantity, getTotalPrice, clearCart } = useCart();
 
   if (!isOpen) {
@@ -98,7 +100,13 @@ function CartModal({ isOpen, onClose }) {
                   <button className="cart-clear-button" onClick={clearCart}>
                     전체 삭제
                   </button>
-                  <button className="cart-checkout-button">
+                  <button 
+                    className="cart-checkout-button" 
+                    onClick={() => {
+                      onClose();
+                      navigate('/checkout');
+                    }}
+                  >
                     주문하기
                   </button>
                 </div>

@@ -1,9 +1,11 @@
 from typing import List, Optional, Dict, Any
 from fastapi import APIRouter, HTTPException, Depends, Query
+from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
 from app.core.logging import get_logger
 from app.services.recommendation_service import RecommendationService
+from app.database import get_db
 
 router = APIRouter()
 logger = get_logger(__name__)
@@ -25,9 +27,9 @@ class RecommendationResponse(BaseModel):
     strategy_used: Dict[str, float]
 
 
-def get_recommendation_service() -> RecommendationService:
+def get_recommendation_service(db: Session = Depends(get_db)) -> RecommendationService:
     """추천 서비스 의존성"""
-    return RecommendationService()
+    return RecommendationService(db=db)
 
 
 @router.post("/search", response_model=RecommendationResponse)
@@ -145,4 +147,48 @@ async def get_user_recommendation_analytics(
         raise HTTPException(
             status_code=500,
             detail="분석 데이터 조회 중 오류가 발생했습니다."
+        )
+
+
+@router.get("/products/search")
+async def search_products(
+    q: str = Query(..., description="검색 쿼리"),
+    user_id: Optional[str] = Query(None, description="사용자 ID (로그인된 경우)"),
+    limit: int = Query(50, ge=1, le=100, description="검색 결과 수"),
+    rec_service: RecommendationService = Depends(get_recommendation_service)
+):
+    """
+    사용자 취향을 반영한 상품 검색
+    
+    - 로그인된 사용자(user_id 제공): 좋아요/장바구니 기반 취향 분석 후 유사도 높은 순으로 정렬
+    - 비로그인 사용자: 인기도 기반 정렬
+    """
+    try:
+        logger.info("Product search request",
+                   query=q[:50],
+                   user_id=user_id,
+                   limit=limit)
+        
+        results = await rec_service.search_products_with_user_preferences(
+            query=q,
+            user_id=user_id,
+            limit=limit
+        )
+        
+        return {
+            "query": q,
+            "user_id": user_id,
+            "results": results,
+            "total_count": len(results),
+            "personalized": user_id is not None
+        }
+        
+    except Exception as e:
+        logger.error("Error in product search",
+                    query=q[:50],
+                    user_id=user_id,
+                    error=str(e))
+        raise HTTPException(
+            status_code=500,
+            detail="상품 검색 중 오류가 발생했습니다."
         )

@@ -88,35 +88,396 @@ fashion-ai-discovery-commerce/
 
 ## 설치 및 실행
 
-### 1. 환경 설정
+### 1. 환경 설정 (최초 1회만)
+
+#### 저장소 클론 및 환경 변수 설정
 ```bash
 # 저장소 클론
 git clone <repository-url>
 cd fashion-ai-discovery-commerce
 
-# 환경 변수 설정
-cp .env.example .env
-# .env 파일에서 OpenAI API Key, Pinecone API Key 등 설정
+# 백엔드 환경 변수 설정
+cd backend
+cp .env  # .env.example이 없다면 직접 생성
+
+# .env 파일을 열어서 OpenAI API Key 설정
+# OPENAI_API_KEY=sk-your-actual-api-key-here
 ```
 
-### 2. 백엔드 실행
+#### 가상환경 설정 및 의존성 설치 (최초 1회만)
+
+**백엔드 가상환경 설정:**
 ```bash
+# 프로젝트 루트에서 시작
+cd fashion-ai-discovery-commerce
+
+# 가상환경 생성 (아직 없다면)
+# 가상환경은 프로젝트 루트에 생성됩니다
+python3 -m venv venv
+
+# 가상환경 활성화 (프로젝트 루트에서 실행)
+# macOS/Linux:
+source venv/bin/activate
+# Windows:
+# venv\Scripts\activate
+
+# 가상환경이 활성화되면 터미널 프롬프트 앞에 (venv)가 표시됩니다
+# 예: (venv) matthew_studio@Matthew-MacStudio fashion-ai-discovery-commerce %
+
+# 의존성 설치 (가상환경 활성화 상태에서)
 cd backend
 pip install -r requirements.txt
-uvicorn app.main:app --reload
 ```
 
-### 3. 프론트엔드 실행
+**프론트엔드 의존성 설치:**
 ```bash
+# 프로젝트 루트에서
 cd frontend
+
+# 의존성 설치
 npm install
+```
+
+---
+
+### 2. 프로그램 실행 (매일 또는 재시작 시)
+
+프로그램을 껐다 켰을 때는 **의존성 설치 없이 바로 실행**하면 됩니다.
+
+#### 방법 1: 로컬 환경에서 실행 (개발용)
+
+**백엔드 실행:**
+```bash
+# ⚠️ 중요: 가상환경은 프로젝트 루트에 있습니다!
+
+# 현재 디렉토리 확인 (선택사항)
+pwd  # 현재 위치 확인
+
+# 방법 1: 프로젝트 루트에서 가상환경 활성화 후 백엔드로 이동 (권장)
+# 프로젝트 루트로 이동 (필요한 경우)
+cd ~/Documents/GitHub/fashion-ai-discovery-commerce
+# 또는 상대 경로로: cd /Users/matthew_studio/Documents/GitHub/fashion-ai-discovery-commerce
+
+source venv/bin/activate  # 가상환경 활성화 (macOS/Linux)
+# 또는 Windows: venv\Scripts\activate
+
+# 가상환경 활성화 확인: 터미널 프롬프트 앞에 (venv)가 보여야 합니다
+# 예: (venv) matthew_studio@Matthew-MacStudio fashion-ai-discovery-commerce %
+
+cd backend  # 백엔드 디렉토리로 이동
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+# 방법 2: 백엔드 디렉토리에서 상대 경로로 활성화
+# 이미 backend 디렉토리에 있다면:
+source ../venv/bin/activate  # 상위 디렉토리의 venv 활성화
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+백엔드가 정상적으로 실행되면:
+- API 서버: http://localhost:8000
+- API 문서: http://localhost:8000/docs
+- Health Check: http://localhost:8000/health
+
+**프론트엔드 실행 (새 터미널 창에서):**
+```bash
+# 프로젝트 루트에서
+cd frontend
+
+# 프론트엔드 개발 서버 실행 (포트: 3000)
 npm start
 ```
 
-### 4. Docker로 실행 (권장)
+프론트엔드가 정상적으로 실행되면:
+- 웹 애플리케이션: http://localhost:3000
+- 브라우저가 자동으로 열립니다
+
+**실행 순서:**
+1. 포트 충돌 확인 및 해결 (필요한 경우)
+   ```bash
+   # 포트 8000이 사용 중이면 종료
+   lsof -ti :8000 | xargs kill -9
+   ```
+2. 가상환경 활성화 및 백엔드 실행 (포트 8000)
+3. 새 터미널에서 프론트엔드 실행 (포트 3000)
+4. 두 서버가 모두 실행되면 브라우저에서 http://localhost:3000 접속
+
+**빠른 참조 (한 줄 요약):**
 ```bash
-docker-compose up -d
+# 백엔드 실행
+cd ~/Documents/GitHub/fashion-ai-discovery-commerce && source venv/bin/activate && cd backend && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+# 포트 충돌 해결
+lsof -ti :8000 | xargs kill -9
 ```
+
+#### 방법 2: Docker로 실행 (권장, 프로덕션 환경)
+
+```bash
+# 프로젝트 루트에서
+docker-compose up -d
+
+# 실행 상태 확인
+docker-compose ps
+
+# 로그 확인
+docker-compose logs -f
+
+# 서비스 중지
+docker-compose down
+
+# 서비스 중지 및 볼륨 삭제 (데이터 초기화)
+docker-compose down -v
+```
+
+Docker로 실행 시 접속 주소:
+- 프론트엔드: http://localhost:3000
+- 백엔드 API: http://localhost:8000
+- API 문서: http://localhost:8000/docs
+
+---
+
+### 3. 실행 확인 및 문제 해결
+
+#### 백엔드 실행 확인
+```bash
+# 터미널에서 확인
+curl http://localhost:8000/health
+
+# 또는 브라우저에서 접속
+# http://localhost:8000/health
+```
+
+정상 응답 예시:
+```json
+{"status": "healthy"}
+```
+
+#### 프론트엔드 실행 확인
+- 브라우저에서 http://localhost:3000 접속
+- 페이지가 정상적으로 로드되는지 확인
+
+#### 자주 발생하는 문제
+
+**문제 1: "command not found: uvicorn" 오류**
+```bash
+# 원인: 가상환경이 활성화되지 않음
+
+# 해결 방법:
+# 가상환경은 프로젝트 루트에 있습니다!
+cd fashion-ai-discovery-commerce  # 프로젝트 루트로 이동
+source venv/bin/activate  # macOS/Linux
+# 또는 Windows: venv\Scripts\activate
+
+# 가상환경 활성화 확인
+which uvicorn  # 경로가 venv 안에 있어야 함
+# 예: /Users/.../fashion-ai-discovery-commerce/venv/bin/uvicorn
+
+# 가상환경이 없다면 생성 (프로젝트 루트에서)
+python3 -m venv venv
+source venv/bin/activate
+cd backend
+pip install -r requirements.txt
+```
+
+**문제 1-1: "no such file or directory: venv/bin/activate" 오류**
+```bash
+# 원인: 가상환경이 프로젝트 루트에 있는데 백엔드 디렉토리에서 활성화 시도
+
+# 해결 방법 1: 프로젝트 루트에서 활성화 (권장)
+cd fashion-ai-discovery-commerce  # 프로젝트 루트로 이동
+source venv/bin/activate
+cd backend
+
+# 해결 방법 2: 백엔드 디렉토리에서 상대 경로로 활성화
+cd fashion-ai-discovery-commerce/backend
+source ../venv/bin/activate  # 상위 디렉토리의 venv 활성화
+
+# 가상환경 위치 확인
+ls -la ../venv/bin/activate  # 파일이 존재하는지 확인
+```
+
+**문제 2: 포트가 이미 사용 중입니다 (Address already in use)**
+```bash
+# 포트 8000이 이미 사용 중인 경우 해결 방법
+
+# 1단계: 포트를 사용 중인 프로세스 확인
+lsof -i :8000  # 백엔드 포트 확인
+# 출력 예시:
+# COMMAND   PID           USER   FD   TYPE DEVICE SIZE/OFF NODE NAME
+# Python  12345  matthew_studio   5u  IPv4  ...      0t0  TCP *:8000 (LISTEN)
+
+# 2단계: 프로세스 종료
+# 방법 A: PID 번호를 직접 사용
+kill -9 <PID>  # 위에서 확인한 PID 번호 입력
+# 예: kill -9 12345
+
+# 방법 B: 한 번에 종료 (권장)
+lsof -ti :8000 | xargs kill -9
+
+# 방법 C: uvicorn 프로세스 모두 종료
+pkill -f uvicorn
+
+# 3단계: 포트가 해제되었는지 확인
+lsof -i :8000  # 아무것도 출력되지 않으면 성공
+
+# 4단계: 다시 서버 실행
+cd backend
+source ../venv/bin/activate
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+
+# 참고: 프론트엔드 포트(3000)도 같은 방법으로 해결 가능
+lsof -ti :3000 | xargs kill -9
+```
+
+**문제 2: 백엔드가 프론트엔드 요청을 받지 못함**
+- `backend/app/core/config.py`의 `ALLOWED_HOSTS`에 `"*"` 또는 `"http://localhost:3000"` 포함 확인
+- CORS 설정 확인
+
+**문제 3: 환경 변수가 적용되지 않음**
+- `.env` 파일이 `backend/` 디렉토리에 있는지 확인
+- `.env` 파일의 변수명이 정확한지 확인 (대소문자 구분)
+- 서버 재시작 필요
+
+**문제 4: 데이터베이스 연결 오류**
+- SQLite 사용 시: `backend/fashion_ai.db` 파일 존재 확인
+- PostgreSQL 사용 시: 데이터베이스 서버 실행 상태 확인
+
+**문제 5: 챗봇이 상품을 찾지 못함 ("현재 조건에 맞는 상품을 찾지 못했어요")**
+```bash
+# 원인: 데이터베이스에 상품 데이터가 없거나 임베딩이 생성되지 않음
+
+# 해결 방법 1: 관리자 API로 상품 초기화 (권장)
+curl -X POST http://localhost:8000/api/v1/admin/products/init
+
+# 또는 브라우저에서 접속
+# http://localhost:8000/api/v1/admin/products/init (POST 요청)
+
+# 해결 방법 2: Python 스크립트로 직접 실행
+cd backend
+source ../venv/bin/activate  # 가상환경 활성화
+python scripts/init_products.py
+
+# 성공 시 응답 예시:
+# {
+#   "message": "상품 데이터 초기화 완료",
+#   "total_products": 200,
+#   "indexed_products": 200,
+#   "success": true
+# }
+
+# 확인: 데이터베이스에 상품이 있는지 확인
+# SQLite의 경우:
+sqlite3 backend/fashion_ai.db "SELECT COUNT(*) FROM products WHERE embedding IS NOT NULL;"
+```
+
+---
+
+### 4. 개발 팁
+
+#### 백엔드 개발 모드
+```bash
+# 자동 리로드 활성화 (코드 변경 시 자동 재시작)
+uvicorn app.main:app --reload
+
+# 특정 포트로 실행
+uvicorn app.main:app --reload --port 8001
+```
+
+#### 프론트엔드 개발 모드
+```bash
+# 개발 서버 실행 (기본적으로 자동 리로드)
+npm start
+
+# 특정 포트로 실행
+PORT=3001 npm start
+```
+
+#### 로그 확인
+
+**백엔드 로그 확인:**
+```bash
+# 방법 1: 애플리케이션 로그 파일 확인
+tail -f backend/logs/app.log
+
+# 방법 2: 실시간 로그 확인 (최근 50줄)
+tail -50 backend/logs/app.log
+
+# 방법 3: 특정 키워드 검색
+grep -i "error" backend/logs/app.log
+grep -i "warning" backend/logs/app.log
+grep -i "chat" backend/logs/app.log
+
+# 방법 4: 백엔드 서버를 백그라운드로 실행한 경우
+# 서버 실행 시 로그 파일로 리다이렉트한 경우:
+tail -f /tmp/backend_server.log
+
+# 방법 5: uvicorn 콘솔 로그 (서버 실행 중인 터미널에서 직접 확인)
+# 서버를 포그라운드로 실행하면 실시간 로그가 표시됨
+```
+
+**프론트엔드 로그 확인:**
+```bash
+# React 개발 서버는 브라우저 콘솔에서 확인
+# Chrome/Edge: F12 → Console 탭
+# Firefox: F12 → 콘솔 탭
+
+# 또는 터미널에서 확인 (npm start 실행 중인 터미널)
+# React 개발 서버의 로그가 실시간으로 표시됨
+```
+
+**Docker 로그 확인:**
+```bash
+# 모든 서비스 로그 확인
+docker-compose logs -f
+
+# 특정 서비스 로그만 확인
+docker-compose logs -f backend
+docker-compose logs -f frontend
+docker-compose logs -f postgres
+docker-compose logs -f redis
+
+# 최근 100줄만 확인
+docker-compose logs --tail=100 backend
+
+# 특정 시간 이후 로그만 확인
+docker-compose logs --since 10m backend  # 최근 10분
+docker-compose logs --since 2024-01-02T10:00:00 backend  # 특정 시간 이후
+```
+
+**로그 레벨별 확인:**
+```bash
+# 에러만 확인
+grep -i "ERROR" backend/logs/app.log | tail -20
+
+# 경고만 확인
+grep -i "WARNING" backend/logs/app.log | tail -20
+
+# 정보 로그 확인
+grep -i "INFO" backend/logs/app.log | tail -20
+
+# 디버그 로그 확인 (DEBUG 레벨이 활성화된 경우)
+grep -i "DEBUG" backend/logs/app.log | tail -20
+```
+
+**챗봇 관련 로그 확인:**
+```bash
+# 챗봇 메시지 처리 로그
+grep "chat" backend/logs/app.log | tail -20
+
+# 상품 검색 로그
+grep "search" backend/logs/app.log | tail -20
+
+# 추천 생성 로그
+grep "recommendation" backend/logs/app.log | tail -20
+
+# 의도 분석 로그
+grep "intent" backend/logs/app.log | tail -20
+```
+
+**로그 파일 위치:**
+- 백엔드 애플리케이션 로그: `backend/logs/app.log`
+- 백그라운드 실행 시: `/tmp/backend_server.log` (또는 지정한 경로)
+- Docker 로그: `docker-compose logs` 명령어로 확인
 
 ## 핵심 기능
 

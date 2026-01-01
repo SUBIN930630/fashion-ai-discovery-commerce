@@ -1,6 +1,7 @@
 // 좋아요 컨텍스트 - 사용자의 좋아요한 상품 관리
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useAuth } from './AuthContext';
+import { favoriteService } from '../services/favoriteService';
 
 const FavoritesContext = createContext(null);
 
@@ -42,20 +43,31 @@ export function FavoritesProvider({ children }) {
    * 
    * @param {string} productId - 상품 ID
    */
-  const toggleFavorite = (productId) => {
+  const toggleFavorite = async (productId) => {
     if (!user) {
       return { success: false, message: '로그인이 필요합니다.' };
     }
 
-    setFavorites(prev => {
-      if (prev.includes(productId)) {
-        return prev.filter(id => id !== productId);
-      } else {
-        return [...prev, productId];
-      }
-    });
+    try {
+      // 로컬 스토리지 업데이트
+      const newFavorites = favorites.includes(productId)
+        ? favorites.filter(id => id !== productId)
+        : [...favorites, productId];
+      
+      setFavorites(newFavorites);
 
-    return { success: true };
+      // 백엔드 API 호출 (비동기, 에러가 나도 로컬 상태는 유지)
+      favoriteService.toggleFavorite(user.id, productId)
+        .catch(error => {
+          console.error('좋아요 API 저장 오류:', error);
+          // 에러 발생 시 롤백하지 않음 (로컬 스토리지 우선)
+        });
+
+      return { success: true };
+    } catch (error) {
+      console.error('좋아요 토글 오류:', error);
+      return { success: false, message: '좋아요 처리 중 오류가 발생했습니다.' };
+    }
   };
 
   /**

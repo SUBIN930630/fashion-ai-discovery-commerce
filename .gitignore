@@ -91,7 +91,7 @@ data/embeddings/*.pkl
 
 # Model cache
 .cache/
-models/
+ml/models/
 
 # Testing
 .coverage
