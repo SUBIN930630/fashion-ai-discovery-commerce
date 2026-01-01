@@ -1,5 +1,6 @@
 from typing import List, Optional
-from pydantic import BaseSettings, Field
+from pydantic_settings import BaseSettings
+from pydantic import Field
 import os
 
 
@@ -14,18 +15,18 @@ class Settings(BaseSettings):
     PORT: int = Field(default=8000, env="API_PORT")
     
     # Security
-    SECRET_KEY: str = Field(env="SECRET_KEY")
+    SECRET_KEY: str = Field(default="dev-secret-key-change-in-production", env="SECRET_KEY")
     ACCESS_TOKEN_EXPIRE_MINUTES: int = Field(default=30, env="ACCESS_TOKEN_EXPIRE_MINUTES")
     
     # Database
-    DATABASE_URL: str = Field(env="DATABASE_URL")
+    DATABASE_URL: str = Field(default="sqlite:///./fashion_ai.db", env="DATABASE_URL")
     
     # Redis
-    REDIS_URL: str = Field(env="REDIS_URL")
+    REDIS_URL: str = Field(default="redis://localhost:6379", env="REDIS_URL")
     REDIS_SESSION_TTL: int = Field(default=3600, env="REDIS_SESSION_TTL")
     
     # OpenAI
-    OPENAI_API_KEY: str = Field(env="OPENAI_API_KEY")
+    OPENAI_API_KEY: str = Field(default="sk-test-key", env="OPENAI_API_KEY")
     OPENAI_MODEL: str = Field(default="gpt-4-turbo", env="OPENAI_MODEL")
     
     # Embedding
