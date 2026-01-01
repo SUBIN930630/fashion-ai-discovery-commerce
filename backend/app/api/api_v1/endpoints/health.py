@@ -1,5 +1,5 @@
 from fastapi import APIRouter
-from typing import Dict
+from typing import Dict, Any
 
 router = APIRouter()
 
@@ -13,7 +13,7 @@ async def health_check() -> Dict[str, str]:
     }
 
 @router.get("/detailed")
-async def detailed_health_check() -> Dict[str, any]:
+async def detailed_health_check() -> Dict[str, Any]:
     """상세 헬스 체크"""
     return {
         "status": "healthy",
