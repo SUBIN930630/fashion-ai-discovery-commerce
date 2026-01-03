@@ -149,12 +149,58 @@
   border: 1px solid #fecaca;
 }
 
-.chat-message-content p {
-  margin: 0;
+.chat-message-text {
   line-height: 1.5;
   font-size: 0.875rem;
-  white-space: pre-wrap; /* 줄바꿈과 공백 유지 */
   word-wrap: break-word; /* 긴 단어 자동 줄바꿈 */
+}
+
+.chat-message-text p {
+  margin: 0 0 0.5rem 0;
+  line-height: 1.5;
+}
+
+.chat-message-text p:last-child {
+  margin-bottom: 0;
+}
+
+.chat-message-text h1,
+.chat-message-text h2,
+.chat-message-text h3 {
+  margin: 0.75rem 0 0.5rem 0;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.chat-message-text h1 {
+  font-size: 1.125rem;
+}
+
+.chat-message-text h2 {
+  font-size: 1rem;
+}
+
+.chat-message-text h3 {
+  font-size: 0.9375rem;
+}
+
+.chat-message-text ul {
+  margin: 0.5rem 0;
+  padding-left: 1.5rem;
+  list-style-type: disc;
+}
+
+.chat-message-text li {
+  margin: 0.25rem 0;
+  line-height: 1.5;
+}
+
+.chat-message-text strong {
+  font-weight: 600;
+}
+
+.chat-message-text em {
+  font-style: italic;
 }
 
 .chat-recommendations {

@@ -5,6 +5,7 @@ import './ChatModal.css';
 import { chatService } from '../services/chatService';
 import { recommendationService } from '../services/recommendationService';
 import { useAuth } from '../contexts/AuthContext';
+import { markdownToReactHtml } from '../utils/markdownRenderer';
 
 /**
  * ChatModal 컴포넌트 - 모달 형태의 채팅 인터페이스
@@ -243,7 +244,10 @@ function ChatModal({ isOpen, onClose }) {
               className={`chat-message ${message.role} ${message.isError ? 'error' : ''}`}
             >
               <div className="chat-message-content">
-                <p>{message.content}</p>
+                <div 
+                  className="chat-message-text"
+                  dangerouslySetInnerHTML={markdownToReactHtml(message.content)}
+                />
                 {message.recommendations && message.recommendations.length > 0 && (
                   <div className="chat-recommendations">
                     <p className="chat-recommendations-title">추천 상품:</p>
