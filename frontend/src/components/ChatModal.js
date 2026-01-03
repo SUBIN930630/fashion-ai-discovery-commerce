@@ -37,7 +37,7 @@ function ChatModal({ isOpen, onClose }) {
     }
   });
   const userId = user?.id || guestUserId;
-  const messagesEndRef = useRef(null);
+  const messagesContainerRef = useRef(null);
   const inputRef = useRef(null);
   const modalRef = useRef(null);
 
@@ -51,10 +51,33 @@ function ChatModal({ isOpen, onClose }) {
     }
   }, [isOpen]);
 
-  // 메시지 목록이 변경될 때 스크롤을 맨 아래로 이동
+  // 메시지 목록이 변경될 때 스크롤 조정
+  // 마지막 메시지가 잘 보이도록 하되, 답변 시작 부분이 보이도록 처리
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    if (messagesContainerRef.current && messages.length > 0) {
+      // 짧은 지연 후 스크롤 조정 (DOM 업데이트 완료 후)
+      setTimeout(() => {
+        const container = messagesContainerRef.current;
+        if (container) {
+          // 현재 스크롤 위치가 이미 아래쪽에 있으면 (사용자가 위로 스크롤하지 않은 경우)만 자동 스크롤
+          const scrollBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+          const isNearBottom = scrollBottom < 200; // 200px 이내에 있으면 하단 근처로 간주
+          
+          if (isNearBottom) {
+            // 마지막 메시지의 시작 부분이 보이도록 스크롤
+            // 전체 높이의 약 90% 지점으로 스크롤하여 답변 시작 부분이 잘 보이도록 함
+            const targetScrollTop = Math.max(0, container.scrollHeight - container.clientHeight * 0.9);
+            
+            container.scrollTo({
+              top: targetScrollTop,
+              behavior: 'smooth'
+            });
+          }
+        }
+      }, 100);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages.length]);
 
   // 입력창 높이 자동 조절
   useEffect(() => {
@@ -237,7 +260,7 @@ function ChatModal({ isOpen, onClose }) {
           </div>
         </div>
 
-        <div className="chat-modal-messages">
+        <div className="chat-modal-messages" ref={messagesContainerRef}>
           {messages.map((message, index) => (
             <div
               key={index}
@@ -305,7 +328,6 @@ function ChatModal({ isOpen, onClose }) {
               </div>
             </div>
           )}
-          <div ref={messagesEndRef} />
         </div>
 
         <div className="chat-modal-input-container">
