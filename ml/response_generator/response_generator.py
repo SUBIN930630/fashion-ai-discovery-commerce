@@ -128,9 +128,23 @@ class ResponseGenerator:
                     })
         
         # 3. 현재 사용자 프롬프트 추가
+        # 대화 히스토리가 있으면 다양성을 요구하는 지시 추가
+        if chat_history and len(chat_history) > 2:
+            prompt_with_diversity = f"""{prompt}
+
+**중요 지시사항:**
+- 이전 대화에서 사용한 표현이나 문장 구조를 반복하지 마세요
+- "괜찮아요! 스타일을 찾는 게 가끔은 쉽지 않죠" 같은 고정된 멘트를 사용하지 마세요
+- "원하시는 스타일에 대해 좀 더 구체적으로 말씀해주시면" 같은 반복적인 질문 패턴을 피하세요
+- 매번 새로운 표현과 접근 방식으로 응답하세요
+- 동문서답(같은 말 반복)을 절대 하지 마세요
+"""
+        else:
+            prompt_with_diversity = prompt
+        
         messages.append({
             "role": "user",
-            "content": prompt
+            "content": prompt_with_diversity
         })
         
         return self.client.chat.completions.create(
