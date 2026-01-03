@@ -134,7 +134,7 @@ function processInlineMarkdown(text, recommendations = []) {
   html = html.replace(/__(.+?)__/g, '<strong>$1</strong>');
   
   // 상품명을 링크로 변환 (추천 상품 목록이 있을 때만)
-  // 볼드 처리 후에 상품명 링크를 적용하여 중복 변환 방지
+  // 볼드 처리 후에 상품명 링크를 적용
   if (recommendations && recommendations.length > 0) {
     // 상품명 길이 순으로 정렬 (긴 이름부터 처리하여 부분 일치 방지)
     const sortedRecs = [...recommendations].sort((a, b) => {
@@ -146,16 +146,55 @@ function processInlineMarkdown(text, recommendations = []) {
     sortedRecs.forEach(rec => {
       if (rec.name && rec.product_url) {
         const productName = rec.name;
+        
+        // 공백 정규화: 상품명과 텍스트 모두 공백을 제거한 버전으로 비교
+        // "오피스룩"과 "오피스 룩"을 동일하게 처리
+        const normalizedProductName = productName.replace(/\s+/g, '');
+        
+        // 정규표현식 이스케이프
         const escapedName = productName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        // 간단한 방법: 이미 링크가 아닌 텍스트에서만 매칭
-        // <a> 태그 내부가 아닌 부분에서만 상품명을 찾아 링크로 변환
-        const pattern = new RegExp(`(?!<a[^>]*>)(?<!</a>)(${escapedName})(?![^<]*</a>)`, 'gi');
-        html = html.replace(pattern, (match) => {
-          return `<a href="${rec.product_url}" class="chat-product-link" data-product-url="${rec.product_url}">${match}</a>`;
-        });
+        
+        // 공백 차이를 허용하는 패턴 생성
+        // 상품명의 각 문자 사이에 공백 0개 이상을 허용하는 패턴
+        // "오피스룩" -> "오\\s*피\\s*스\\s*룩"
+        // "오피스 룩" -> "오\\s*피\\s*스\\s*\\s*룩" (기존 공백도 유지)
+        const chars = productName.split('');
+        const flexiblePattern = chars.map(char => {
+          if (/\s/.test(char)) {
+            return '\\s*';
+          }
+          return char.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*';
+        }).join('').replace(/\\s\*\\s\*/g, '\\s*'); // 연속된 \s* 정리
+        
+        // <strong> 태그 내부의 상품명도 링크로 변환
+        html = html.replace(new RegExp(`(<strong>)([^<]*?)(${flexiblePattern})([^<]*?)(</strong>)`, 'gi'), 
+          (match, openTag, prefix, productNameText, suffix, closeTag) => {
+            // 매칭된 텍스트에서 공백을 제거한 버전과 상품명의 정규화된 버전 비교
+            const matchedText = (prefix + productNameText + suffix).trim().replace(/\s+/g, '');
+            if (matchedText.includes(normalizedProductName)) {
+              const fullText = prefix + productNameText + suffix;
+              return `${openTag}<a href="${rec.product_url}" class="chat-product-link" data-product-url="${rec.product_url}">${fullText.trim()}</a>${closeTag}`;
+            }
+            return match;
+          });
+        
+        // 일반 텍스트에서 상품명을 링크로 변환 (이미 링크나 태그 내부가 아닌 경우)
+        html = html.replace(new RegExp(`(?!<a[^>]*>)(?<!</a>)(?<!<strong>)(?<!</strong>)(${flexiblePattern})(?![^<]*</a>)(?![^<]*</strong>)`, 'gi'), 
+          (match) => {
+            // 매칭된 텍스트에서 공백을 제거한 버전과 상품명의 정규화된 버전 비교
+            const matchedText = match.trim().replace(/\s+/g, '');
+            if (matchedText === normalizedProductName || matchedText.includes(normalizedProductName)) {
+              return `<a href="${rec.product_url}" class="chat-product-link" data-product-url="${rec.product_url}">${match.trim()}</a>`;
+            }
+            return match;
+          });
       }
     });
   }
+  
+  // 남은 볼드 마커 제거 (** 또는 __)
+  html = html.replace(/\*\*/g, '');
+  html = html.replace(/__/g, '');
   
   // 이탤릭 텍스트 변환은 볼드보다 우선순위가 낮으므로 제외
   // (볼드와 충돌 방지)
