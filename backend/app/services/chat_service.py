@@ -98,12 +98,27 @@ class ChatService:
                        exploration_intent=intent_result.exploration_intent)
             
             # 4. 상품 검색 및 추천
-            recommendations = await self._generate_recommendations(
+            # 질문 단계(정보 수집 단계)에서는 추천 상품을 보여주지 않음
+            # - confidence가 낮을 때 (의도 파악이 불명확)
+            # - 사용자 메시지가 매우 짧을 때 (구체적인 요구사항 없음)
+            should_show_recommendations = self._should_show_recommendations(
                 user_message=user_message,
                 intent_result=intent_result,
-                user_profile=user_profile,
-                session=session
+                chat_history=chat_history
             )
+            
+            recommendations = []
+            if should_show_recommendations:
+                recommendations = await self._generate_recommendations(
+                    user_message=user_message,
+                    intent_result=intent_result,
+                    user_profile=user_profile,
+                    session=session
+                )
+            else:
+                logger.info("Skipping recommendations - information gathering phase",
+                           confidence=intent_result.confidence,
+                           message_length=len(user_message))
             
             # 5. AI 응답 생성
             ai_response = await self.response_generator.generate_response(
@@ -263,6 +278,48 @@ class ChatService:
                     "cart_total_price": 0
                 }
             }
+    
+    def _should_show_recommendations(
+        self,
+        user_message: str,
+        intent_result: Any,
+        chat_history: List[Dict]
+    ) -> bool:
+        """
+        추천 상품을 보여줄지 여부를 결정
+        
+        질문 단계(정보 수집 단계)에서는 추천 상품을 보여주지 않음
+        
+        Args:
+            user_message: 사용자 메시지
+            intent_result: 의도 분석 결과
+            chat_history: 대화 히스토리
+            
+        Returns:
+            bool: 추천 상품을 보여줄지 여부
+        """
+        # 1. confidence가 낮으면 (0.6 미만) 추천하지 않음
+        if intent_result.confidence < 0.6:
+            return False
+        
+        # 2. 사용자 메시지가 매우 짧으면 (5자 이하) 추천하지 않음
+        message_length = len(user_message.strip())
+        if message_length <= 5:
+            return False
+        
+        # 3. 대화 히스토리가 없거나 매우 짧으면 (첫 대화) 항상 추천
+        if not chat_history or len(chat_history) <= 2:
+            return True
+        
+        # 4. 최근 대화에서 사용자가 질문만 하고 구체적인 요구사항이 없는 경우 체크
+        # (예: "네", "좋아", "어떻게" 등)
+        question_only_keywords = ['네', '좋아', '어떻게', '뭐', '무엇', '어떤', '어디', '언제', '누구']
+        user_message_lower = user_message.strip().lower()
+        if any(keyword in user_message_lower for keyword in question_only_keywords):
+            if message_length <= 10:  # 질문 키워드만 있고 짧은 경우
+                return False
+        
+        return True
     
     async def _generate_recommendations(
         self,
