@@ -39,9 +39,24 @@ function AdminDashboard() {
   const [favoritesUserFilter, setFavoritesUserFilter] = useState('all'); // 좋아요 목록 사용자 필터
   const [cartUserFilter, setCartUserFilter] = useState('all'); // 장바구니 사용자 필터
   const [isEditProductModalOpen, setIsEditProductModalOpen] = useState(false);
+  const [isAddProductModalOpen, setIsAddProductModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
   const [products, setProducts] = useState(dummyProducts); // 상품 목록 상태
   const [editProductData, setEditProductData] = useState({
+    name: '',
+    brand: '',
+    category: '상의',
+    gender: '남성',
+    style_tags: [],
+    color: '',
+    price: 0,
+    popularity_score: 0.0,
+    image_url: '',
+    description: '',
+    season: '',
+    situation: ''
+  });
+  const [newProductData, setNewProductData] = useState({
     name: '',
     brand: '',
     category: '상의',
@@ -87,7 +102,7 @@ function AdminDashboard() {
    */
   const loadTabData = () => {
     if (activeTab === 'orders') {
-      // 주문 내역 로드
+      // 주문 내역 로드 (localStorage에서 가져오기)
       const allOrders = JSON.parse(localStorage.getItem('orders') || '[]');
       setOrders(allOrders.sort((a, b) => new Date(b.order_date) - new Date(a.order_date)));
     } else if (activeTab === 'analytics') {
@@ -568,7 +583,21 @@ function AdminDashboard() {
                   <button
                     className="admin-add-user-button"
                     onClick={() => {
-                      alert('상품 등록 기능은 별도 페이지에서 구현됩니다.');
+                      setIsAddProductModalOpen(true);
+                      setNewProductData({
+                        name: '',
+                        brand: '',
+                        category: '상의',
+                        gender: '남성',
+                        style_tags: [],
+                        color: '',
+                        price: 0,
+                        popularity_score: 0.0,
+                        image_url: '',
+                        description: '',
+                        season: '',
+                        situation: ''
+                      });
                     }}
                   >
                     + 상품 등록
@@ -1306,6 +1335,297 @@ function AdminDashboard() {
                 }}
               >
                 저장
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 상품 등록 모달 */}
+      {isAddProductModalOpen && (
+        <div className="admin-modal-overlay" onClick={() => setIsAddProductModalOpen(false)}>
+          <div className="admin-modal admin-modal-large" onClick={(e) => e.stopPropagation()}>
+            <div className="admin-modal-header">
+              <h3>상품 등록</h3>
+              <button
+                className="admin-modal-close"
+                onClick={() => setIsAddProductModalOpen(false)}
+                aria-label="닫기"
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M18 6L6 18M6 6L18 18"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
+              </button>
+            </div>
+            <div className="admin-modal-content">
+              <div className="admin-form-group">
+                <label htmlFor="new-product-name">상품명 *</label>
+                <input
+                  id="new-product-name"
+                  type="text"
+                  value={newProductData.name}
+                  onChange={(e) => setNewProductData({ ...newProductData, name: e.target.value })}
+                  placeholder="오버핏 후드티"
+                  required
+                />
+              </div>
+              <div className="admin-form-group">
+                <label htmlFor="new-product-brand">브랜드 *</label>
+                <input
+                  id="new-product-brand"
+                  type="text"
+                  value={newProductData.brand}
+                  onChange={(e) => setNewProductData({ ...newProductData, brand: e.target.value })}
+                  placeholder="무신사 Style"
+                  required
+                />
+              </div>
+              <div className="admin-form-row">
+                <div className="admin-form-group">
+                  <label htmlFor="new-product-category">카테고리 *</label>
+                  <select
+                    id="new-product-category"
+                    value={newProductData.category}
+                    onChange={(e) => setNewProductData({ ...newProductData, category: e.target.value })}
+                    required
+                  >
+                    <option value="상의">상의</option>
+                    <option value="하의">하의</option>
+                    <option value="아우터">아우터</option>
+                    <option value="신발">신발</option>
+                    <option value="액세서리">액세서리</option>
+                    <option value="기타">기타</option>
+                  </select>
+                </div>
+                <div className="admin-form-group">
+                  <label htmlFor="new-product-gender">성별 *</label>
+                  <select
+                    id="new-product-gender"
+                    value={newProductData.gender}
+                    onChange={(e) => setNewProductData({ ...newProductData, gender: e.target.value })}
+                    required
+                  >
+                    <option value="남성">남성</option>
+                    <option value="여성">여성</option>
+                    <option value="공용">공용</option>
+                  </select>
+                </div>
+              </div>
+              <div className="admin-form-group">
+                <label htmlFor="new-product-price">가격 *</label>
+                <input
+                  id="new-product-price"
+                  type="number"
+                  value={newProductData.price}
+                  onChange={(e) => setNewProductData({ ...newProductData, price: parseInt(e.target.value) || 0 })}
+                  placeholder="89000"
+                  min="0"
+                  required
+                />
+              </div>
+              <div className="admin-form-group">
+                <label htmlFor="new-product-image-url">이미지 URL *</label>
+                <input
+                  id="new-product-image-url"
+                  type="url"
+                  value={newProductData.image_url}
+                  onChange={(e) => setNewProductData({ ...newProductData, image_url: e.target.value })}
+                  placeholder="https://images.unsplash.com/photo-..."
+                  required
+                />
+                {newProductData.image_url && (
+                  <img
+                    src={newProductData.image_url}
+                    alt="미리보기"
+                    style={{
+                      width: '100%',
+                      maxHeight: '200px',
+                      objectFit: 'contain',
+                      marginTop: '0.5rem',
+                      borderRadius: '8px',
+                      border: '1px solid #e5e7eb'
+                    }}
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                    }}
+                  />
+                )}
+              </div>
+              <div className="admin-form-group">
+                <label htmlFor="new-product-description">상품 설명</label>
+                <textarea
+                  id="new-product-description"
+                  value={newProductData.description}
+                  onChange={(e) => setNewProductData({ ...newProductData, description: e.target.value })}
+                  placeholder="상품에 대한 상세 설명을 입력하세요."
+                  rows="4"
+                  style={{ resize: 'vertical' }}
+                />
+              </div>
+              <div className="admin-form-group">
+                <label htmlFor="new-product-style-tags">스타일 태그 (쉼표로 구분)</label>
+                <input
+                  id="new-product-style-tags"
+                  type="text"
+                  value={typeof newProductData.style_tags === 'string' ? newProductData.style_tags : newProductData.style_tags.join(', ')}
+                  onChange={(e) => setNewProductData({ ...newProductData, style_tags: e.target.value })}
+                  placeholder="무신사 감성, 스트릿, 오버핏"
+                />
+                <p style={{ fontSize: '0.75rem', color: '#9ca3af', margin: '0.25rem 0 0 0' }}>
+                  여러 태그는 쉼표로 구분하여 입력하세요.
+                </p>
+              </div>
+              <div className="admin-form-row">
+                <div className="admin-form-group">
+                  <label htmlFor="new-product-color">색상</label>
+                  <input
+                    id="new-product-color"
+                    type="text"
+                    value={newProductData.color}
+                    onChange={(e) => setNewProductData({ ...newProductData, color: e.target.value })}
+                    placeholder="블랙"
+                  />
+                </div>
+                <div className="admin-form-group">
+                  <label htmlFor="new-product-popularity">인기도 점수</label>
+                  <input
+                    id="new-product-popularity"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    max="1"
+                    value={newProductData.popularity_score}
+                    onChange={(e) => setNewProductData({ ...newProductData, popularity_score: parseFloat(e.target.value) || 0 })}
+                    placeholder="0.92"
+                  />
+                </div>
+              </div>
+              <div className="admin-form-row">
+                <div className="admin-form-group">
+                  <label htmlFor="new-product-season">계절</label>
+                  <select
+                    id="new-product-season"
+                    value={newProductData.season}
+                    onChange={(e) => setNewProductData({ ...newProductData, season: e.target.value })}
+                  >
+                    <option value="">선택 안함</option>
+                    <option value="봄">봄</option>
+                    <option value="여름">여름</option>
+                    <option value="가을">가을</option>
+                    <option value="겨울">겨울</option>
+                    <option value="봄/여름">봄/여름</option>
+                    <option value="가을/겨울">가을/겨울</option>
+                    <option value="봄/가을">봄/가을</option>
+                    <option value="사계절">사계절</option>
+                  </select>
+                </div>
+                <div className="admin-form-group">
+                  <label htmlFor="new-product-situation">상황</label>
+                  <input
+                    id="new-product-situation"
+                    type="text"
+                    value={newProductData.situation}
+                    onChange={(e) => setNewProductData({ ...newProductData, situation: e.target.value })}
+                    placeholder="데일리, 데이트, 출근 등"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="admin-modal-footer">
+              <button
+                className="admin-modal-cancel"
+                onClick={() => {
+                  setIsAddProductModalOpen(false);
+                  setNewProductData({
+                    name: '',
+                    brand: '',
+                    category: '상의',
+                    gender: '남성',
+                    style_tags: [],
+                    color: '',
+                    price: 0,
+                    popularity_score: 0.0,
+                    image_url: '',
+                    description: '',
+                    season: '',
+                    situation: ''
+                  });
+                }}
+              >
+                취소
+              </button>
+              <button
+                className="admin-modal-submit"
+                onClick={async () => {
+                  if (!newProductData.name || !newProductData.brand || !newProductData.category || !newProductData.gender || !newProductData.price || !newProductData.image_url) {
+                    alert('필수 항목을 모두 입력해주세요.');
+                    return;
+                  }
+
+                  try {
+                    // 스타일 태그 처리 (쉼표로 구분된 문자열을 배열로 변환)
+                    const styleTagsArray = typeof newProductData.style_tags === 'string'
+                      ? (newProductData.style_tags ? newProductData.style_tags.split(',').map(tag => tag.trim()).filter(tag => tag.length > 0) : [])
+                      : newProductData.style_tags;
+
+                    // 상품 ID 생성 (기존 상품 ID 중 가장 큰 번호 + 1)
+                    const existingIds = products.map(p => {
+                      const match = p.product_id.match(/^prod_(\d+)$/);
+                      return match ? parseInt(match[1]) : 0;
+                    });
+                    const maxId = existingIds.length > 0 ? Math.max(...existingIds) : 0;
+                    const newProductId = `prod_${String(maxId + 1).padStart(3, '0')}`;
+
+                    // 새 상품 객체 생성
+                    const newProduct = {
+                      product_id: newProductId,
+                      name: newProductData.name.trim(),
+                      brand: newProductData.brand.trim(),
+                      category: newProductData.category,
+                      gender: newProductData.gender,
+                      style_tags: styleTagsArray,
+                      color: newProductData.color.trim() || '',
+                      price: parseInt(newProductData.price),
+                      popularity_score: parseFloat(newProductData.popularity_score) || 0.0,
+                      image_url: newProductData.image_url.trim(),
+                      description: newProductData.description.trim() || '',
+                      season: newProductData.season || '',
+                      situation: newProductData.situation.trim() || ''
+                    };
+
+                    // 프론트엔드 products 상태에 추가
+                    setProducts(prevProducts => [...prevProducts, newProduct]);
+
+                    // 모달 닫기 및 상태 초기화
+                    setIsAddProductModalOpen(false);
+                    setNewProductData({
+                      name: '',
+                      brand: '',
+                      category: '상의',
+                      gender: '남성',
+                      style_tags: [],
+                      color: '',
+                      price: 0,
+                      popularity_score: 0.0,
+                      image_url: '',
+                      description: '',
+                      season: '',
+                      situation: ''
+                    });
+                    alert('상품이 등록되었습니다.');
+                  } catch (error) {
+                    console.error('상품 등록 오류:', error);
+                    alert('상품 등록 중 오류가 발생했습니다: ' + error.message);
+                  }
+                }}
+              >
+                등록
               </button>
             </div>
           </div>

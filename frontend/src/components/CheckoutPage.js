@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import './CheckoutPage.css';
 import { useCart } from '../contexts/CartContext';
 import { useAuth } from '../contexts/AuthContext';
+import { orderService } from '../services/orderService';
 
 /**
  * CheckoutPage 컴포넌트 - 주문/결제 페이지
@@ -67,21 +68,59 @@ function CheckoutPage() {
     setIsProcessing(true);
 
     try {
-      // 주문 정보 저장 (로컬 스토리지)
-      const order = {
-        order_id: `order_${Date.now()}`,
-        user_id: user?.id,
-        items: cartItems,
-        total_price: getTotalPrice(),
-        order_info: orderInfo,
-        order_date: new Date().toISOString(),
-        status: '주문완료'
-      };
-
-      // 주문 내역 저장
-      const orders = JSON.parse(localStorage.getItem('orders') || '[]');
-      orders.push(order);
-      localStorage.setItem('orders', JSON.stringify(orders));
+      // 백엔드 API로 주문 생성
+      let order;
+      try {
+        const apiOrder = await orderService.createOrder(
+          user?.id,
+          cartItems,
+          getTotalPrice(),
+          orderInfo
+        );
+        
+        // 백엔드 API 응답을 localStorage 형식으로 변환
+        order = {
+          order_id: apiOrder.order_id,
+          user_id: apiOrder.user_id,
+          items: apiOrder.items.map(item => {
+            // product_data가 병합되어 있을 수 있으므로 안전하게 처리
+            const productData = item.product_data || {};
+            return {
+              product_id: item.product_id,
+              quantity: item.quantity,
+              price: item.price,
+              name: item.name || productData.name,
+              brand: item.brand || productData.brand,
+              image_url: item.image_url || productData.image_url,
+              product_data: productData
+            };
+          }),
+          total_price: apiOrder.total_price,
+          order_info: apiOrder.order_info,
+          order_date: apiOrder.order_date || new Date().toISOString(),
+          status: apiOrder.status || '주문완료'
+        };
+        
+        // localStorage에 저장 (주문 완료 페이지 호환성 유지)
+        const orders = JSON.parse(localStorage.getItem('orders') || '[]');
+        orders.push(order);
+        localStorage.setItem('orders', JSON.stringify(orders));
+      } catch (apiError) {
+        console.warn('백엔드 API 주문 생성 실패, localStorage에 저장:', apiError);
+        // 백엔드 API 실패 시 localStorage에 저장 (호환성 유지)
+        order = {
+          order_id: `order_${Date.now()}`,
+          user_id: user?.id,
+          items: cartItems,
+          total_price: getTotalPrice(),
+          order_info: orderInfo,
+          order_date: new Date().toISOString(),
+          status: '주문완료'
+        };
+        const orders = JSON.parse(localStorage.getItem('orders') || '[]');
+        orders.push(order);
+        localStorage.setItem('orders', JSON.stringify(orders));
+      }
 
       // 장바구니 비우기
       await clearCart();
