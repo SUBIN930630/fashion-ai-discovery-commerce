@@ -290,8 +290,8 @@ function ChatModal({ isOpen, onClose }) {
                                   );
                                 }
                                 
+                                // 상품 페이지로 이동 (채팅 창은 열어둠)
                                 navigate(rec.product_url);
-                                onClose(); // 챗봇 모달 닫기
                               }
                             }}
                           >
