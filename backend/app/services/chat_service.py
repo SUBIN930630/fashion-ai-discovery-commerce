@@ -137,7 +137,7 @@ class ChatService:
                            response_length=len(ai_response),
                            session_id=session.session_id)
                 extracted_recommendations = await self._match_products_from_response(
-                    ai_response=ai_response,
+                    response=ai_response,
                     user_message=user_message,
                     intent_result=intent_result,
                     user_profile=user_profile,
