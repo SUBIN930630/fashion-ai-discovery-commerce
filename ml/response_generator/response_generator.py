@@ -259,6 +259,9 @@ class ResponseGenerator:
         # 문서 규칙: 꼬리질문 개수 제한 (최대 2개)
         response = self._limit_question_count(response)
         
+        # 비율 정보 제거 (70%, 30% 등)
+        response = self._remove_percentage_info(response)
+        
         # 이모지 사용 설정에 따른 처리
         if not settings.USE_EMOJIS:
             response = self._remove_emojis(response)
@@ -359,6 +362,27 @@ class ResponseGenerator:
                        final_count=final_count)
         
         return response
+    
+    def _remove_percentage_info(self, text: str) -> str:
+        """
+        응답에서 비율 정보 제거 (70%, 30% 등)
+        예: "새로운 발견 추천 (70%)" -> "새로운 발견 추천"
+        """
+        import re
+        
+        # (70%), (30%), (50%) 등의 패턴 제거
+        text = re.sub(r'\s*\(\d+%\)\s*', '', text)
+        
+        # "새로운 발견 추천 70%" -> "새로운 발견 추천"
+        text = re.sub(r'\s*\d+%\s*', '', text)
+        
+        # "70%", "30%" 같은 단독 비율 텍스트 제거
+        text = re.sub(r'\b\d+%\b', '', text)
+        
+        # 연속된 공백 제거
+        text = re.sub(r'\s+', ' ', text)
+        
+        return text.strip()
     
     def _remove_emojis(self, text: str) -> str:
         """텍스트에서 이모지 제거"""
