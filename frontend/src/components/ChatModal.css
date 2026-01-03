@@ -203,6 +203,18 @@
   font-style: italic;
 }
 
+.chat-message-text a.chat-product-link {
+  color: #667eea;
+  text-decoration: underline;
+  cursor: pointer;
+  transition: color 0.2s;
+}
+
+.chat-message-text a.chat-product-link:hover {
+  color: #764ba2;
+  text-decoration: underline;
+}
+
 .chat-recommendations {
   margin-top: 0.5rem;
   padding-top: 0.5rem;

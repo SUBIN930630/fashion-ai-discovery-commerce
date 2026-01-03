@@ -269,7 +269,28 @@ function ChatModal({ isOpen, onClose }) {
               <div className="chat-message-content">
                 <div 
                   className="chat-message-text"
-                  dangerouslySetInnerHTML={markdownToReactHtml(message.content)}
+                  dangerouslySetInnerHTML={markdownToReactHtml(
+                    message.content, 
+                    message.recommendations || []
+                  )}
+                  onClick={(e) => {
+                    // 상품 링크 클릭 처리
+                    const link = e.target.closest('.chat-product-link');
+                    if (link) {
+                      e.preventDefault();
+                      const productUrl = link.getAttribute('data-product-url');
+                      if (productUrl) {
+                        // 클릭 로그 전송
+                        const userId = user?.id || guestUserId;
+                        const productId = productUrl.split('/').pop();
+                        if (productId) {
+                          recommendationService.recordClick(userId, productId);
+                        }
+                        // 상품 페이지로 이동 (채팅 창은 열어둠)
+                        navigate(productUrl);
+                      }
+                    }
+                  }}
                 />
                 {message.recommendations && message.recommendations.length > 0 && (
                   <div className="chat-recommendations">
