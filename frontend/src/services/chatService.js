@@ -2,7 +2,8 @@
 import axios from 'axios';
 
 // API 기본 URL (환경 변수에서 가져오거나 기본값 사용)
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+// 빈 문자열이면 상대 경로를 사용하여 nginx 프록시를 통해 요청
+const API_BASE_URL = process.env.REACT_APP_API_URL || '';
 
 /**
  * axios 인스턴스 생성 - 기본 설정 포함

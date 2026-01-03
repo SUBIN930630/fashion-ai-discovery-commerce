@@ -1,5 +1,6 @@
 // 좋아요 서비스 - 백엔드 API와 통신
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+// API 기본 URL (빈 문자열이면 상대 경로를 사용하여 nginx 프록시를 통해 요청)
+const API_BASE_URL = process.env.REACT_APP_API_URL || '';
 
 /**
  * API 클라이언트 - 기본 HTTP 요청 함수

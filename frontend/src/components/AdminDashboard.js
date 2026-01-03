@@ -1229,7 +1229,8 @@ function AdminDashboard() {
                       : [];
 
                     // 백엔드 API 호출
-                    const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:8000';
+                    // 빈 문자열이면 상대 경로를 사용하여 nginx 프록시를 통해 요청
+                    const API_BASE_URL = process.env.REACT_APP_API_URL || '';
                     const response = await fetch(`${API_BASE_URL}/api/v1/admin/products/${editingProduct.product_id}`, {
                       method: 'PUT',
                       headers: {
