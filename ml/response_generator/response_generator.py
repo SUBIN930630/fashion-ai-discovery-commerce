@@ -74,6 +74,7 @@ class ResponseGenerator:
                 self.executor,
                 self._create_completion_sync,
                 prompt,
+                chat_history,
             )
             
             ai_response = response.choices[0].message.content
@@ -94,14 +95,47 @@ class ResponseGenerator:
             # 에러 시 기본 응답
             return self._get_fallback_response(intent_result, recommendations)
 
-    def _create_completion_sync(self, prompt: str):
-        """동기 호출을 스레드에서 실행하기 위한 래퍼"""
+    def _create_completion_sync(self, prompt: str, chat_history: Optional[List[Dict]] = None):
+        """
+        동기 호출을 스레드에서 실행하기 위한 래퍼
+        
+        Args:
+            prompt: 현재 사용자 프롬프트
+            chat_history: 대화 히스토리 (이전 메시지들)
+        """
+        messages = []
+        
+        # 1. 시스템 프롬프트 추가
+        messages.append({
+            "role": "system",
+            "content": self.template_manager.get_system_prompt()
+        })
+        
+        # 2. 대화 히스토리 추가 (최근 10개 메시지만, 토큰 제한 고려)
+        if chat_history:
+            # 최근 10개 메시지만 포함 (user와 assistant 쌍으로 최대 5쌍)
+            recent_history = chat_history[-10:]
+            
+            for msg in recent_history:
+                role = msg.get("role", "")
+                content = msg.get("content", "")
+                
+                # role이 user 또는 assistant인 경우만 추가
+                if role in ["user", "assistant"] and content:
+                    messages.append({
+                        "role": role,
+                        "content": content
+                    })
+        
+        # 3. 현재 사용자 프롬프트 추가
+        messages.append({
+            "role": "user",
+            "content": prompt
+        })
+        
         return self.client.chat.completions.create(
             model=self.model,
-            messages=[
-                {"role": "system", "content": self.template_manager.get_system_prompt()},
-                {"role": "user", "content": prompt},
-            ],
+            messages=messages,
             temperature=0.7,
             max_tokens=settings.MAX_RESPONSE_LENGTH,
         )
