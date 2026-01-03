@@ -61,6 +61,9 @@ class ResponseGenerator:
                 chat_history=chat_history
             )
             
+            # 컨텍스트를 인스턴스 변수에 저장 (프롬프트 생성 시 사용)
+            self._last_context = context
+            
             # 3. 프롬프트 생성
             prompt = self.template_manager.render_template(template_name, context)
             
