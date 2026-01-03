@@ -134,3 +134,36 @@ class RecommendationFeedback(Base):
     product_id = Column(String(255), nullable=False, index=True)
     feedback_type = Column(String(50), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+
+class Order(Base):
+    """주문 테이블 모델"""
+
+    __tablename__ = "orders"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    order_id = Column(String(255), unique=True, nullable=False, index=True)
+    user_id = Column(String(255), nullable=False, index=True)
+    total_price = Column(Integer, nullable=False)
+    status = Column(String(50), nullable=False, default="주문완료", index=True)
+    order_info = Column(JSON)  # 배송 정보, 결제 정보 등
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+
+    items = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan", lazy="selectin")
+
+
+class OrderItem(Base):
+    """주문 상품 테이블 모델"""
+
+    __tablename__ = "order_items"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    order_id = Column(String(255), ForeignKey("orders.order_id"), nullable=False, index=True)
+    product_id = Column(String(255), nullable=False, index=True)
+    quantity = Column(Integer, nullable=False, default=1)
+    price = Column(Integer, nullable=False)  # 주문 시점의 가격
+    product_data = Column(JSON)  # 상품 정보 스냅샷 (이름, 브랜드, 이미지 등)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+
+    order = relationship("Order", back_populates="items")

@@ -1,9 +1,12 @@
 // 관리자 서비스 - 관리자 전용 기능을 제공하는 서비스
 import { dummyProducts } from '../data/dummyProducts';
 
+// API 기본 URL (빈 문자열이면 상대 경로를 사용하여 nginx 프록시를 통해 요청)
+const API_BASE_URL = process.env.REACT_APP_API_URL || '';
+
 /**
  * AdminService - 관리자 전용 기능을 제공하는 서비스 클래스
- * 로컬 스토리지에서 사용자 데이터를 조회합니다.
+ * 로컬 스토리지와 백엔드 API를 사용합니다.
  */
 class AdminService {
   /**
@@ -290,6 +293,61 @@ class AdminService {
         totalCartItems: allCarts.reduce((sum, u) => sum + u.cartItems.reduce((s, item) => s + item.quantity, 0), 0),
         totalChatMessages: allChatHistory.reduce((sum, u) => sum + u.chatHistory.length, 0)
       };
+    }
+  }
+
+  /**
+   * 모든 주문 목록 가져오기
+   * 
+   * @returns {Promise<Array>} 주문 목록
+   */
+  async getAllOrders() {
+    // localStorage에서 주문 데이터 가져오기 (기존 방식 유지)
+    try {
+      const orders = JSON.parse(localStorage.getItem('orders') || '[]');
+      return orders;
+    } catch (error) {
+      console.error('주문 목록 조회 오류:', error);
+      return [];
+    }
+  }
+
+  /**
+   * 주문 상태 업데이트
+   * 
+   * @param {string} orderId - 주문 ID
+   * @param {string} status - 새로운 상태
+   * @returns {Promise<boolean>} 성공 여부
+   */
+  async updateOrderStatus(orderId, status) {
+    try {
+      // 백엔드 API 호출 시도
+      const response = await fetch(`${API_BASE_URL}/api/v1/admin/orders/${orderId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ status })
+      });
+      
+      if (response.ok) {
+        return true;
+      }
+    } catch (error) {
+      console.warn('백엔드 API 호출 실패, localStorage에 저장합니다:', error);
+    }
+    
+    // 백엔드 API가 실패하면 localStorage에 저장 (호환성 유지)
+    try {
+      const orders = JSON.parse(localStorage.getItem('orders') || '[]');
+      const updatedOrders = orders.map(order =>
+        order.order_id === orderId ? { ...order, status } : order
+      );
+      localStorage.setItem('orders', JSON.stringify(updatedOrders));
+      return true;
+    } catch (error) {
+      console.error('주문 상태 업데이트 오류:', error);
+      return false;
     }
   }
 }

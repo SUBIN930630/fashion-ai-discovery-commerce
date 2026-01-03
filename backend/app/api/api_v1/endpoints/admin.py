@@ -10,8 +10,9 @@ from app.core.logging import get_logger
 from app.services.chat_history_service import ChatHistoryService
 from app.services.favorite_service import FavoriteService
 from app.services.cart_service import CartService
+from app.services.order_service import OrderService
 from app.database import get_db
-from app.models.db_models import ChatHistory, Product
+from app.models.db_models import ChatHistory, Product, Order
 
 router = APIRouter()
 logger = get_logger(__name__)
@@ -205,6 +206,98 @@ async def get_all_carts(
     except Exception as e:
         logger.error("Error retrieving all carts", error=str(e))
         raise HTTPException(status_code=500, detail="장바구니 조회 중 오류가 발생했습니다.")
+
+
+@router.get("/orders")
+async def get_all_orders(
+    limit: int = 100,
+    offset: int = 0,
+    status: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """모든 주문 조회 (관리자용)"""
+    try:
+        order_service = OrderService(db)
+        orders = await order_service.get_all_orders(
+            limit=limit,
+            offset=offset,
+            status=status
+        )
+        
+        # 주문 데이터를 JSON 형식으로 변환
+        orders_data = []
+        for order in orders:
+            # 주문 상품 정보 수집
+            items = []
+            for item in order.items:
+                item_data = {
+                    "product_id": item.product_id,
+                    "quantity": item.quantity,
+                    "price": item.price
+                }
+                # product_data가 있으면 추가
+                if item.product_data:
+                    item_data.update(item.product_data)
+                items.append(item_data)
+            
+            order_data = {
+                "order_id": order.order_id,
+                "user_id": order.user_id,
+                "total_price": order.total_price,
+                "status": order.status,
+                "order_date": order.created_at.isoformat() if order.created_at else None,
+                "order_info": order.order_info,
+                "items": items
+            }
+            orders_data.append(order_data)
+        
+        return {
+            "total": len(orders_data),
+            "orders": orders_data
+        }
+        
+    except Exception as e:
+        logger.error("Error retrieving all orders", error=str(e))
+        raise HTTPException(status_code=500, detail="주문 목록 조회 중 오류가 발생했습니다.")
+
+
+class OrderStatusUpdateRequest(BaseModel):
+    """주문 상태 업데이트 요청 모델"""
+    status: str
+
+
+@router.put("/orders/{order_id}")
+async def update_order_status(
+    order_id: str,
+    request: OrderStatusUpdateRequest,
+    db: Session = Depends(get_db)
+):
+    """주문 상태 업데이트"""
+    try:
+        order_service = OrderService(db)
+        order = await order_service.update_order_status(
+            order_id=order_id,
+            status=request.status
+        )
+        
+        if not order:
+            raise HTTPException(status_code=404, detail="주문을 찾을 수 없습니다.")
+        
+        return {
+            "message": "주문 상태가 업데이트되었습니다.",
+            "order_id": order.order_id,
+            "status": order.status,
+            "success": True
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error("Error updating order status",
+                    order_id=order_id,
+                    status=request.status,
+                    error=str(e))
+        raise HTTPException(status_code=500, detail="주문 상태 업데이트 중 오류가 발생했습니다.")
 
 
 @router.post("/products/init")
