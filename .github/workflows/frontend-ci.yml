@@ -1,0 +1,56 @@
+name: Frontend CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    name: Build frontend assets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm'
+
+      - name: Install dependencies (build)
+        run: npm ci --prefix frontend
+
+      - name: Build frontend
+        run: npm run build --prefix frontend
+
+  build-and-test:
+    name: Run tests and E2E
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm'
+
+      - name: Install dependencies (tests)
+        run: npm ci --prefix frontend
+
+      - name: Run unit tests
+        run: npm test --prefix frontend -- --watchAll=false
+
+      - name: Run Cypress tests
+        uses: cypress-io/github-action@v5
+        with:
+          runTests: true
+          start: npm start --prefix frontend
+          wait-on: 'http://localhost:3000'
+          browser: chrome
+        env:
+          REACT_APP_DEMO_MODE: 'true'
