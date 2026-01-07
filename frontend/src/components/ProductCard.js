@@ -64,7 +64,19 @@ function ProductCard({ product, onClick }) {
   };
 
   return (
-    <div className="product-card" onClick={handleClick}>
+    <div
+      className="product-card"
+      onClick={handleClick}
+      role="button"
+      tabIndex="0"
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          handleClick();
+        }
+      }}
+      aria-label={`${product.name} 상품 상세 보기`}
+    >
       <div className="product-image-container">
         <img 
           src={product.image_url || 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?w=600&h=800&fit=crop'} 

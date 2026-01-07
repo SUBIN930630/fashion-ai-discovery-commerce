@@ -166,7 +166,7 @@ function AppContent() {
   }, [products, searchQuery, selectedGender, selectedCategory]);
 
   return (
-    <div className="container">
+    <div id="main-content" className="container" tabIndex="-1">
       <div className="main-header">
         <h2>추천 상품</h2>
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap' }}>
@@ -270,6 +270,7 @@ function Layout({ children }) {
 
   return (
     <div className="app">
+      <a href="#main-content" className="skip-link">본문으로 건너뛰기</a>
       {/* 헤더 - 무신사 스타일 */}
       <Header onSearch={<SearchBar onSearch={handleSearch} />} />
 

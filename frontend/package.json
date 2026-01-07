@@ -14,8 +14,13 @@
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",
-    "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "test": "react-scripts test --watchAll=false",
+    "eject": "react-scripts eject",
+    "cypress:open": "cypress open",
+    "cypress:run": "cypress run --headless"
+  },
+  "devDependencies": {
+    "cypress": "^12.17.0"
   },
   "eslintConfig": {
     "extends": [

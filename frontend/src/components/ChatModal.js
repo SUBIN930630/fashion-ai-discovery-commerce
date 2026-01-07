@@ -215,7 +215,13 @@ function ChatModal({ isOpen, onClose }) {
 
   return (
     <div className="chat-modal-overlay">
-      <div className={`chat-modal ${isExpanded ? 'expanded' : ''}`} ref={modalRef}>
+      <div
+        className={`chat-modal ${isExpanded ? 'expanded' : ''}`}
+        ref={modalRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label="AI 스타일리스트 채팅"
+      >
         <div className="chat-modal-header">
           <div className="chat-modal-header-content">
             <h3>AI 스타일리스트 💬</h3>
