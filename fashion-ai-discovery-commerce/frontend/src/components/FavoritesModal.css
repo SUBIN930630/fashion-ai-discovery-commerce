@@ -1,0 +1,227 @@
+/* FavoritesModal 컴포넌트 스타일 */
+.favorites-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1500;
+  padding: 2rem;
+  animation: fadeIn 0.2s ease-out;
+}
+
+.favorites-modal {
+  background-color: #ffffff;
+  border-radius: 12px;
+  max-width: 900px;
+  width: 100%;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  animation: slideUp 0.3s ease-out;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.favorites-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.5rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.favorites-modal-header h2 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+}
+
+.favorites-modal-close {
+  background: none;
+  border: none;
+  color: #6b7280;
+  cursor: pointer;
+  padding: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.favorites-modal-close:hover {
+  background-color: #f3f4f6;
+  color: #111827;
+}
+
+.favorites-modal-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.5rem;
+}
+
+.favorites-empty {
+  text-align: center;
+  padding: 4rem 2rem;
+  color: #6b7280;
+}
+
+.favorites-empty-icon {
+  color: #d1d5db;
+  margin: 0 auto 1.5rem;
+  display: block;
+}
+
+.favorites-empty p {
+  margin: 0.5rem 0;
+}
+
+.favorites-empty-hint {
+  font-size: 0.875rem;
+  color: #9ca3af;
+}
+
+.favorites-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 1.5rem;
+}
+
+.favorites-item {
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.favorites-item:hover {
+  opacity: 0.8;
+}
+
+.favorites-item-image-container {
+  position: relative;
+  width: 100%;
+  padding-top: 125%;
+  overflow: hidden;
+  background-color: #f5f5f5;
+  border-radius: 8px;
+  margin-bottom: 0.75rem;
+}
+
+.favorites-item-image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.favorites-item-remove-button {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  background-color: rgba(255, 255, 255, 0.9);
+  border: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.2s, transform 0.2s;
+  color: #ef4444;
+  z-index: 5;
+}
+
+.favorites-item-remove-button:hover {
+  background-color: rgba(255, 255, 255, 1);
+  transform: scale(1.1);
+}
+
+.favorites-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.favorites-item-brand {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  margin: 0;
+  font-weight: 400;
+}
+
+.favorites-item-name {
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: #111827;
+  margin: 0;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.favorites-item-price {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #111827;
+  margin: 0;
+}
+
+.favorites-modal-footer {
+  padding: 1rem 1.5rem;
+  border-top: 1px solid #e5e7eb;
+  text-align: center;
+}
+
+.favorites-modal-footer p {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin: 0;
+}
+
+/* 스크롤바 스타일링 */
+.favorites-modal-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.favorites-modal-content::-webkit-scrollbar-track {
+  background: #f1f1f1;
+}
+
+.favorites-modal-content::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+.favorites-modal-content::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+@media (max-width: 768px) {
+  .favorites-modal-overlay {
+    padding: 0;
+  }
+
+  .favorites-modal {
+    max-width: 100%;
+    max-height: 100vh;
+    border-radius: 0;
+    height: 100vh;
+  }
+
+  .favorites-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+}
+

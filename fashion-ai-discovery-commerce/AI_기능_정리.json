@@ -1,0 +1,757 @@
+{
+  "project_name": "패션 AI 추천 시스템",
+  "version": "1.0.0",
+  "last_updated": "2025-01-02",
+  "overview": {
+    "architecture": {
+      "flow": [
+        "사용자 메시지 입력",
+        "Intent Analyzer - 의도 분석 (5가지 Intent 분류)",
+        "Vector Search - 벡터 기반 상품 검색",
+        "MMR Algorithm - 다양성 있는 추천 선택",
+        "Response Generator - 자연어 응답 생성",
+        "최종 추천 결과 + AI 응답"
+      ]
+    },
+    "tech_stack": {
+      "llm": "GPT-4o-mini (OpenAI)",
+      "embedding": "text-embedding-3-large (OpenAI)",
+      "vector_store": "SQL 기반 (PostgreSQL/SQLite)",
+      "algorithm": "MMR (Maximal Marginal Relevance)"
+    }
+  },
+  "core_ai_modules": [
+    {
+      "id": 1,
+      "name": "Intent Analyzer",
+      "name_kr": "의도 분석",
+      "location": "ml/intent_analyzer/",
+      "files": [
+        {
+          "name": "intent_classifier.py",
+          "description": "의도 분류 클래스"
+        },
+        {
+          "name": "few_shot_prompts.py",
+          "description": "Few-shot 학습 프롬프트"
+        }
+      ],
+      "features": [
+        {
+          "name": "5가지 Intent 분류",
+          "description": "사용자 의도를 5가지 카테고리로 분류",
+          "intents": [
+            "가격·가성비",
+            "감성·스타일",
+            "시즌·날씨",
+            "체형·핏",
+            "코디·상황"
+          ]
+        },
+        {
+          "name": "탐색 의도 감지",
+          "description": "사용자가 새로운 것을 찾는지 감지",
+          "examples": [
+            {
+              "input": "새로운 스타일 보여줘",
+              "output": {
+                "exploration_intent": true
+              }
+            },
+            {
+              "input": "다른 거 없어?",
+              "output": {
+                "exploration_intent": true
+              }
+            }
+          ]
+        },
+        {
+          "name": "카테고리 전환 감지",
+          "description": "평소와 다른 카테고리 요청 감지",
+          "example": {
+            "scenario": "평소 후드티 → 재킷 요청",
+            "output": {
+              "category_shift": true
+            }
+          }
+        },
+        {
+          "name": "추천 전략 비율 결정",
+          "description": "의도에 따라 추천 비율 자동 결정",
+          "strategies": [
+            {
+              "mode": "탐색 모드",
+              "exploitation": 0.3,
+              "exploration": 0.7
+            },
+            {
+              "mode": "활용 모드",
+              "exploitation": 0.7,
+              "exploration": 0.3
+            },
+            {
+              "mode": "카테고리 전환",
+              "exploitation": 0.3,
+              "bridge": 0.5,
+              "exploration": 0.2
+            }
+          ]
+        }
+      ],
+      "usage_example": {
+        "code": "from ml.intent_analyzer import IntentClassifier\n\nclassifier = IntentClassifier(api_key=\"your-key\")\nresult = await classifier.classify_intent(\n    user_message=\"새로운 스타일 보여줘\",\n    chat_history=[],\n    user_profile={}\n)",
+        "output": {
+          "intent": "감성·스타일",
+          "exploration_intent": true,
+          "recommendation_strategy": {
+            "exploitation": 0.3,
+            "exploration": 0.7
+          }
+        }
+      }
+    },
+    {
+      "id": 2,
+      "name": "Vector Search",
+      "name_kr": "벡터 검색",
+      "location": "ml/vector_search/",
+      "files": [
+        {
+          "name": "embedding_service.py",
+          "description": "임베딩 생성 서비스"
+        },
+        {
+          "name": "search_engine.py",
+          "description": "검색 엔진"
+        },
+        {
+          "name": "sql_vector_store.py",
+          "description": "SQL 기반 벡터 스토어"
+        },
+        {
+          "name": "vector_store.py",
+          "description": "벡터 스토어 추상 클래스 (Pinecone/Weaviate 지원)"
+        }
+      ],
+      "features": [
+        {
+          "name": "임베딩 생성",
+          "description": "텍스트를 벡터로 변환",
+          "specs": {
+            "dimensions": 3072,
+            "model": "text-embedding-3-large",
+            "caching": true
+          },
+          "conversions": [
+            "상품 정보 → 벡터 변환",
+            "사용자 쿼리 → 벡터 변환"
+          ]
+        },
+        {
+          "name": "유사도 검색",
+          "description": "코사인 유사도 기반 검색",
+          "method": "SQL 기반 벡터 검색 (Pinecone 대체)",
+          "filters": [
+            "카테고리",
+            "브랜드",
+            "가격"
+          ]
+        },
+        {
+          "name": "유사도 범위별 검색",
+          "description": "유사도 범위에 따라 상품 분류",
+          "ranges": [
+            {
+              "name": "High Similarity",
+              "threshold": ">0.8",
+              "type": "기존 취향"
+            },
+            {
+              "name": "Mid Similarity",
+              "threshold": "0.5~0.8",
+              "type": "브릿지 스타일"
+            },
+            {
+              "name": "Low Similarity",
+              "threshold": "0.3~0.5",
+              "type": "새로운 발견"
+            }
+          ]
+        }
+      ],
+      "usage_example": {
+        "code": "from ml.vector_search import SearchEngine\n\nsearch_engine = SearchEngine(db=db_session)\ncandidates = await search_engine.search_products(\n    query=\"미니멀 셔츠\",\n    user_profile={\"preferred_styles\": [\"미니멀\"]},\n    limit=50\n)",
+        "output": {
+          "type": "List[ProductCandidate]",
+          "fields": [
+            "similarity_score: 유사도 점수",
+            "recommendation_type: EXPLOITATION/EXPLORATION/BRIDGE"
+          ]
+        }
+      }
+    },
+    {
+      "id": 3,
+      "name": "MMR Algorithm",
+      "name_kr": "다양성 추천",
+      "location": "ml/mmr_algorithm/",
+      "files": [
+        {
+          "name": "mmr_scorer.py",
+          "description": "MMR 알고리즘 구현"
+        },
+        {
+          "name": "diversity_calculator.py",
+          "description": "다양성 점수 계산"
+        }
+      ],
+      "features": [
+        {
+          "name": "MMR 점수 계산",
+          "description": "유사도와 다양성의 균형",
+          "formula": "MMR = λ × Similarity(q, d) - (1-λ) × max Similarity(d, d')",
+          "parameters": {
+            "lambda": 0.7,
+            "description": "유사도 vs 다양성 가중치"
+          }
+        },
+        {
+          "name": "다양성 보장",
+          "description": "다양한 차원에서 다양성 확보",
+          "dimensions": [
+            {
+              "name": "스타일 다양성",
+              "requirement": "3개 이상 다른 스타일 필수"
+            },
+            {
+              "name": "카테고리 다양성",
+              "requirement": "다양한 카테고리 포함"
+            },
+            {
+              "name": "컬러 다양성",
+              "requirement": "다양한 색상 포함"
+            },
+            {
+              "name": "가격 다양성",
+              "requirement": "다양한 가격대 포함"
+            },
+            {
+              "name": "브랜드 다양성",
+              "requirement": "동일 브랜드 최대 2개"
+            }
+          ]
+        },
+        {
+          "name": "추천 전략 반영",
+          "description": "의도 분석 결과에 따른 비율 조정",
+          "features": [
+            "exploitation/exploration/bridge 비율에 따라 선택",
+            "유형별 목표 개수 자동 계산"
+          ]
+        }
+      ],
+      "usage_example": {
+        "code": "from ml.mmr_algorithm import MMRScorer\n\nmmr_scorer = MMRScorer(lambda_param=0.7)\nresult = await mmr_scorer.select_recommendations(\n    query_embedding=query_vector,\n    candidates=product_candidates,\n    target_count=10,\n    strategy={\"exploitation\": 0.7, \"exploration\": 0.3}\n)",
+        "output": {
+          "type": "MMRResult",
+          "fields": [
+            "selected_products: 선택된 상품 리스트",
+            "total_diversity_score: 전체 다양성 점수",
+            "type_distribution: 유형별 분포"
+          ]
+        }
+      }
+    },
+    {
+      "id": 4,
+      "name": "Response Generator",
+      "name_kr": "응답 생성",
+      "location": "ml/response_generator/",
+      "files": [
+        {
+          "name": "response_generator.py",
+          "description": "응답 생성 클래스"
+        },
+        {
+          "name": "prompt_templates.py",
+          "description": "프롬프트 템플릿 관리"
+        }
+      ],
+      "features": [
+        {
+          "name": "의도별 템플릿 선택",
+          "description": "Intent에 따라 적절한 템플릿 사용",
+          "templates": [
+            {
+              "intent": "가격·가성비",
+              "template": "price_value"
+            },
+            {
+              "intent": "감성·스타일",
+              "template": "style_mood"
+            },
+            {
+              "intent": "시즌·날씨",
+              "template": "season_weather"
+            },
+            {
+              "intent": "체형·핏",
+              "template": "fit_body"
+            },
+            {
+              "intent": "코디·상황",
+              "template": "coordination_situation"
+            }
+          ]
+        },
+        {
+          "name": "응답 구조 (4단계)",
+          "description": "구조화된 응답 생성",
+          "steps": [
+            "공감 + 의도 확인",
+            "새로운 발견 추천 (70%)",
+            "기존 취향 추천 (30%)",
+            "꼬리질문 or 대안 제시 (최대 2개)"
+          ]
+        },
+        {
+          "name": "후처리 규칙",
+          "description": "응답 품질 보장",
+          "rules": [
+            "질문 개수 제한 (최대 2개)",
+            "이모지 사용 제어",
+            "길이 제한 (1000자)",
+            "안전성 필터"
+          ]
+        }
+      ],
+      "usage_example": {
+        "code": "from ml.response_generator import ResponseGenerator\n\ngenerator = ResponseGenerator(api_key=\"your-key\")\nresponse = await generator.generate_response(\n    user_message=\"미니멀 셔츠 추천해줘\",\n    intent_result=intent_result,\n    recommendations=recommendations,\n    user_profile=user_profile,\n    chat_history=chat_history\n)",
+        "output": {
+          "type": "자연어 응답 문자열"
+        }
+      }
+    }
+  ],
+  "service_layer": [
+    {
+      "id": 5,
+      "name": "Chat Service",
+      "name_kr": "통합 서비스",
+      "location": "backend/app/services/chat_service.py",
+      "features": [
+        {
+          "name": "전체 프로세스 통합",
+          "description": "모든 AI 모듈을 통합하여 사용자 메시지 처리",
+          "flow": [
+            "의도 분석",
+            "상품 검색",
+            "MMR 선택",
+            "응답 생성"
+          ]
+        },
+        {
+          "name": "사용자 프로필 관리",
+          "description": "사용자 정보 조회 및 분석",
+          "data_sources": [
+            "좋아요 목록 조회",
+            "장바구니 정보 조회",
+            "사용자 취향 분석"
+          ]
+        },
+        {
+          "name": "재추천 방지",
+          "description": "중복 추천 방지 로직",
+          "rules": [
+            "최근 5회 대화에서 추천한 상품 제외",
+            "클릭하지 않은 상품 우선 제외"
+          ]
+        },
+        {
+          "name": "스타일 다양성 강제",
+          "description": "최소 다양성 요구사항 보장",
+          "requirement": "최소 3개 이상 다른 스타일 포함",
+          "fallback": "부족 시 자동으로 추가 상품 선택"
+        }
+      ],
+      "main_method": {
+        "name": "process_message",
+        "description": "사용자 메시지 처리",
+        "steps": [
+          "대화 히스토리 조회",
+          "사용자 프로필 조회",
+          "의도 분석",
+          "상품 검색 및 추천",
+          "AI 응답 생성",
+          "메시지 저장"
+        ]
+      }
+    },
+    {
+      "id": 6,
+      "name": "Recommendation Service",
+      "name_kr": "추천 서비스",
+      "location": "backend/app/services/recommendation_service.py",
+      "features": [
+        {
+          "name": "사용자 취향 분석",
+          "description": "DB 기반 사용자 취향 분석",
+          "analysis_items": [
+            "좋아요/장바구니 기반 스타일 분포 계산",
+            "선호 카테고리/브랜드 추출",
+            "가격 범위 분석"
+          ]
+        },
+        {
+          "name": "추천 히스토리 관리",
+          "description": "추천 내역 및 피드백 관리",
+          "functions": [
+            "추천 내역 저장",
+            "피드백 기록 (클릭, 좋아요, 구매 등)"
+          ]
+        },
+        {
+          "name": "사용자 분석",
+          "description": "사용자 행동 패턴 분석",
+          "metrics": [
+            "추천 패턴 분석",
+            "탐색률 계산",
+            "피드백 분석"
+          ]
+        }
+      ],
+      "main_method": {
+        "name": "analyze_user_preferences_from_db",
+        "description": "DB에서 사용자 취향 분석",
+        "output": {
+          "style_distribution": "스타일 분포",
+          "preferred_categories": "선호 카테고리",
+          "preferred_brands": "선호 브랜드",
+          "price_range": "가격 범위"
+        }
+      }
+    }
+  ],
+  "api_endpoints": [
+    {
+      "id": 7,
+      "name": "Chat API",
+      "location": "backend/app/api/api_v1/endpoints/chat.py",
+      "endpoints": [
+        {
+          "method": "POST",
+          "path": "/api/v1/chat/message",
+          "description": "사용자 메시지 처리",
+          "request": {
+            "message": "미니멀 셔츠 추천해줘",
+            "user_id": "user123",
+            "session_id": "session456"
+          },
+          "response": {
+            "response": "미니멀 스타일의 셔츠를 추천해드릴게요! ...",
+            "session_id": "session456",
+            "recommendations": [
+              {
+                "id": "prod001",
+                "name": "미니멀 코튼 셔츠",
+                "brand": "브랜드A",
+                "price": 59000,
+                "similarity_score": 0.92,
+                "recommendation_type": "exploitation"
+              }
+            ],
+            "intent": "감성·스타일",
+            "confidence": 0.95
+          }
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/chat/history/{session_id}",
+          "description": "대화 히스토리 조회"
+        },
+        {
+          "method": "GET",
+          "path": "/api/v1/chat/sessions/{user_id}",
+          "description": "사용자 세션 목록 조회"
+        },
+        {
+          "method": "WebSocket",
+          "path": "/api/v1/chat/ws/{user_id}",
+          "description": "실시간 채팅 지원"
+        }
+      ]
+    }
+  ],
+  "execution_flow": {
+    "description": "전체 프로세스 흐름",
+    "steps": [
+      {
+        "step": 1,
+        "action": "사용자 메시지 입력",
+        "example": "미니멀 셔츠 추천해줘"
+      },
+      {
+        "step": 2,
+        "action": "ChatService.process_message()"
+      },
+      {
+        "step": 3,
+        "action": "IntentClassifier.classify_intent()",
+        "output": {
+          "intent": "감성·스타일",
+          "exploration_intent": false,
+          "recommendation_strategy": {
+            "exploitation": 0.7,
+            "exploration": 0.3
+          }
+        }
+      },
+      {
+        "step": 4,
+        "action": "SearchEngine.search_products()",
+        "process": [
+          "임베딩 생성",
+          "벡터 검색",
+          "50개 후보 선정"
+        ]
+      },
+      {
+        "step": 5,
+        "action": "MMRScorer.select_recommendations()",
+        "process": [
+          "MMR 알고리즘",
+          "10개 선택 (다양성 보장)"
+        ]
+      },
+      {
+        "step": 6,
+        "action": "스타일 다양성 강제 검증",
+        "process": [
+          "3개 이상 다른 스타일 확인",
+          "부족 시 추가 선택"
+        ]
+      },
+      {
+        "step": 7,
+        "action": "ResponseGenerator.generate_response()",
+        "process": [
+          "프롬프트 생성",
+          "GPT API 호출",
+          "후처리"
+        ]
+      },
+      {
+        "step": 8,
+        "action": "최종 응답 반환",
+        "output": {
+          "response": "미니멀 스타일의 셔츠를 추천해드릴게요! ...",
+          "recommendations": [],
+          "intent": "감성·스타일"
+        }
+      }
+    ]
+  },
+  "rules_and_constraints": {
+    "filter_bubble_resolution": {
+      "description": "필터버블 해소 규칙",
+      "rules": [
+        {
+          "name": "추천 비율",
+          "new_discoveries": "70%",
+          "existing_preferences": "30%"
+        },
+        {
+          "name": "스타일 다양성",
+          "requirement": "최소 3개 이상 다른 스타일 포함"
+        },
+        {
+          "name": "브랜드 제한",
+          "requirement": "동일 브랜드 최대 2개"
+        },
+        {
+          "name": "재추천 방지",
+          "rules": [
+            "최근 5회 대화에서 추천한 상품 제외",
+            "클릭하지 않은 상품 우선 제외"
+          ]
+        }
+      ]
+    },
+    "response_generation": {
+      "description": "응답 생성 규칙",
+      "rules": [
+        {
+          "name": "질문 개수 제한",
+          "requirement": "최대 2개 질문"
+        },
+        {
+          "name": "응답 구조",
+          "structure": [
+            "공감",
+            "새로운 발견 (70%)",
+            "기존 취향 (30%)",
+            "꼬리질문"
+          ]
+        },
+        {
+          "name": "톤앤매너",
+          "characteristics": [
+            "친근한 대화체",
+            "이모지 적절히 사용",
+            "존댓말 사용"
+          ]
+        }
+      ]
+    }
+  },
+  "configuration": {
+    "location": "backend/app/core/config.py",
+    "settings": {
+      "openai": {
+        "OPENAI_API_KEY": "string",
+        "OPENAI_MODEL": "gpt-4o-mini",
+        "EMBEDDING_MODEL": "text-embedding-3-large",
+        "EMBEDDING_DIMENSIONS": 3072
+      },
+      "mmr_algorithm": {
+        "MMR_LAMBDA": 0.7
+      },
+      "recommendation": {
+        "MAX_RECOMMENDATIONS": 10,
+        "MIN_SIMILARITY_THRESHOLD": 0.3,
+        "MAX_SIMILARITY_THRESHOLD": 0.9
+      },
+      "response": {
+        "MAX_RESPONSE_LENGTH": 1000,
+        "USE_EMOJIS": true,
+        "MAX_FOLLOW_UP_QUESTIONS": 2
+      }
+    }
+  },
+  "file_structure": {
+    "ml": {
+      "intent_analyzer": [
+        {
+          "file": "intent_classifier.py",
+          "description": "의도 분류 클래스"
+        },
+        {
+          "file": "few_shot_prompts.py",
+          "description": "Few-shot 프롬프트"
+        }
+      ],
+      "vector_search": [
+        {
+          "file": "embedding_service.py",
+          "description": "임베딩 생성"
+        },
+        {
+          "file": "search_engine.py",
+          "description": "검색 엔진"
+        },
+        {
+          "file": "sql_vector_store.py",
+          "description": "SQL 벡터 스토어"
+        },
+        {
+          "file": "vector_store.py",
+          "description": "벡터 스토어 추상 클래스"
+        }
+      ],
+      "mmr_algorithm": [
+        {
+          "file": "mmr_scorer.py",
+          "description": "MMR 알고리즘"
+        },
+        {
+          "file": "diversity_calculator.py",
+          "description": "다양성 계산"
+        }
+      ],
+      "response_generator": [
+        {
+          "file": "response_generator.py",
+          "description": "응답 생성"
+        },
+        {
+          "file": "prompt_templates.py",
+          "description": "프롬프트 템플릿"
+        }
+      ]
+    },
+    "backend": {
+      "services": [
+        {
+          "file": "chat_service.py",
+          "description": "통합 채팅 서비스"
+        },
+        {
+          "file": "recommendation_service.py",
+          "description": "추천 서비스"
+        }
+      ],
+      "api": {
+        "endpoints": [
+          {
+            "file": "chat.py",
+            "description": "채팅 API 엔드포인트"
+          }
+        ]
+      }
+    }
+  },
+  "summary": {
+    "implemented_features": [
+      {
+        "id": 1,
+        "name": "의도 분석",
+        "description": "5가지 Intent 분류, 탐색 의도 감지"
+      },
+      {
+        "id": 2,
+        "name": "벡터 검색",
+        "description": "임베딩 기반 유사도 검색"
+      },
+      {
+        "id": 3,
+        "name": "다양성 추천",
+        "description": "MMR 알고리즘으로 필터버블 해소"
+      },
+      {
+        "id": 4,
+        "name": "자연어 응답",
+        "description": "GPT 기반 맥락 맞춤 응답 생성"
+      },
+      {
+        "id": 5,
+        "name": "사용자 프로필",
+        "description": "좋아요/장바구니 기반 취향 분석"
+      },
+      {
+        "id": 6,
+        "name": "재추천 방지",
+        "description": "최근 추천 상품 제외 로직"
+      }
+    ],
+    "key_features": [
+      {
+        "name": "필터버블 해소",
+        "description": "새로운 발견 70% / 기존 취향 30%"
+      },
+      {
+        "name": "다양성 보장",
+        "description": "최소 3개 이상 다른 스타일, 동일 브랜드 최대 2개"
+      },
+      {
+        "name": "맥락 이해",
+        "description": "대화 히스토리 및 사용자 프로필 활용"
+      },
+      {
+        "name": "자연스러운 대화",
+        "description": "친근한 톤앤매너, 최대 2개 질문"
+      }
+    ]
+  }
+}
+

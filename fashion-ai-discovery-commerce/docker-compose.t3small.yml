@@ -1,0 +1,114 @@
+version: '3.8'
+
+# T3.small (2GB RAM) 최적화 버전
+# 메모리 효율적인 구성으로 배포합니다.
+
+services:
+  # Backend API Service
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: fashion-ai-backend
+    restart: unless-stopped
+    # 메모리 제한 설정 (약 400MB)
+    deploy:
+      resources:
+        limits:
+          memory: 400M
+        reservations:
+          memory: 200M
+    environment:
+      # SQLite 사용 (메모리 절약)
+      - DATABASE_URL=sqlite:///./fashion_ai.db
+      - REDIS_URL=redis://redis:6379
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+      - DEBUG=False
+      - LOG_LEVEL=INFO
+    depends_on:
+      - redis
+    volumes:
+      # SQLite 파일 영구 저장 (디렉토리 마운트 방식)
+      - ./backend:/app
+      - ./logs:/app/logs
+      # ml 디렉토리 마운트 (필요시)
+      - ./ml:/ml
+    networks:
+      - fashion-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Redis for Session Management (최소 메모리 설정)
+  redis:
+    image: redis:7-alpine
+    container_name: fashion-ai-redis
+    restart: unless-stopped
+    # 메모리 제한 설정 (약 100MB)
+    deploy:
+      resources:
+        limits:
+          memory: 100M
+        reservations:
+          memory: 50M
+    command: >
+      redis-server
+      --maxmemory 80mb
+      --maxmemory-policy allkeys-lru
+      --save ""
+      --appendonly no
+    volumes:
+      # 영구 저장 필요 없으면 볼륨 제거 가능
+      - redis_data:/data
+    networks:
+      - fashion-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Nginx Reverse Proxy (Frontend 정적 파일 서빙 + API 프록시)
+  nginx:
+    image: nginx:alpine
+    container_name: fashion-ai-nginx
+    restart: unless-stopped
+    # 메모리 제한 설정 (약 50MB)
+    deploy:
+      resources:
+        limits:
+          memory: 50M
+        reservations:
+          memory: 20M
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      # Frontend 빌드 파일
+      - ./frontend/build:/usr/share/nginx/html:ro
+      # SSL 인증서 (Let's Encrypt 사용 시)
+      # - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - backend
+    networks:
+      - fashion-network
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  redis_data:
+    driver: local
+
+networks:
+  fashion-network:
+    driver: bridge
+

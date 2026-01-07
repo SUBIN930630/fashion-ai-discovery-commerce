@@ -1,0 +1,153 @@
+/* Header 컴포넌트 스타일 */
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  flex: 1;
+  justify-content: flex-end;
+  min-width: 0; /* flex 아이템이 줄어들 수 있도록 */
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.header-user-name {
+  font-size: 0.875rem;
+  color: #374151;
+  font-weight: 500;
+  white-space: nowrap;
+  min-width: fit-content;
+}
+
+.header-button {
+  padding: 0.5rem 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s;
+  background-color: #ffffff;
+  color: #111827;
+}
+
+.header-button:hover {
+  background-color: #f9fafb;
+  border-color: #9ca3af;
+}
+
+.login-button {
+  color: #111827;
+}
+
+.signup-button {
+  background-color: #111827;
+  color: white;
+  border-color: #111827;
+}
+
+.signup-button:hover {
+  background-color: #374151;
+  border-color: #374151;
+}
+
+.logout-button {
+  color: #6b7280;
+  white-space: nowrap;
+  min-width: fit-content;
+}
+
+.logout-button:hover {
+  background-color: #f3f4f6;
+  color: #111827;
+}
+
+.mypage-button {
+  background-color: #ffffff;
+  border: 1px solid #d1d5db;
+  color: #111827;
+  padding: 0.5rem 0.75rem;
+  white-space: nowrap;
+  min-width: fit-content;
+}
+
+.mypage-button:hover {
+  background-color: #f9fafb;
+  color: #111827;
+  border: 1px solid #d1d5db;
+}
+
+.cart-button {
+  position: relative;
+  padding: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cart-badge,
+.favorites-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background-color: #ef4444;
+  color: white;
+  border-radius: 10px;
+  min-width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  padding: 0 4px;
+}
+
+.favorites-button {
+  position: relative;
+  padding: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #6b7280;
+}
+
+.favorites-button:hover {
+  color: #ef4444;
+}
+
+.admin-button {
+  background-color: #dc2626;
+  color: white;
+  border-color: #dc2626;
+  white-space: nowrap;
+  min-width: fit-content;
+}
+
+.admin-button:hover {
+  background-color: #b91c1c;
+  border-color: #b91c1c;
+}
+
+@media (max-width: 768px) {
+  .header-content {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .header-right {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 1rem;
+  }
+
+  .header-actions {
+    justify-content: flex-end;
+  }
+}
+
