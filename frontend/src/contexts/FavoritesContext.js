@@ -1,107 +1,41 @@
-// 좋아요 컨텍스트 - 사용자의 좋아요한 상품 관리
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { useAuth } from './AuthContext';
-import { favoriteService } from '../services/favoriteService';
+// src/contexts/FavoritesContext.js
+import React, { createContext, useState, useEffect, useContext } from 'react';
 
-const FavoritesContext = createContext(null);
+const FavoritesContext = createContext();
 
-/**
- * FavoritesProvider - 좋아요 컨텍스트 제공자
- * 사용자가 좋아요한 상품 목록을 관리합니다.
- */
-export function FavoritesProvider({ children }) {
-  const { user } = useAuth();
-  const [favorites, setFavorites] = useState([]);
+export const FavoritesProvider = ({ children }) => {
+  // 1. 저장된 좋아요 목록 불러오기 (없으면 빈 배열)
+  const [favorites, setFavorites] = useState(() => {
+    const localData = localStorage.getItem('favorites');
+    return localData ? JSON.parse(localData) : [];
+  });
 
-  // 사용자 변경 시 좋아요 목록 로드
+  // 2. 목록이 바뀔 때마다 컴퓨터(LocalStorage)에 저장
   useEffect(() => {
-    if (user) {
-      const savedFavorites = localStorage.getItem(`favorites_${user.id}`);
-      if (savedFavorites) {
-        try {
-          setFavorites(JSON.parse(savedFavorites));
-        } catch (error) {
-          console.error('좋아요 목록 로드 오류:', error);
-        }
+    localStorage.setItem('favorites', JSON.stringify(favorites));
+  }, [favorites]);
+
+  // 3. 좋아요 토글 (이미 있으면 삭제, 없으면 추가)
+  const toggleFavorite = (product) => {
+    setFavorites(prev => {
+      const exists = prev.find(item => item.product_id === product.product_id);
+      if (exists) {
+        return prev.filter(item => item.product_id !== product.product_id); // 삭제
       }
-    } else {
-      setFavorites([]);
-    }
-  }, [user]);
-
-  /**
-   * 좋아요 목록 저장
-   */
-  useEffect(() => {
-    if (user && favorites.length >= 0) {
-      localStorage.setItem(`favorites_${user.id}`, JSON.stringify(favorites));
-    }
-  }, [favorites, user]);
-
-  /**
-   * 좋아요 토글
-   * 
-   * @param {string} productId - 상품 ID
-   */
-  const toggleFavorite = async (productId) => {
-    if (!user) {
-      return { success: false, message: '로그인이 필요합니다.' };
-    }
-
-    try {
-      // 로컬 스토리지 업데이트
-      const newFavorites = favorites.includes(productId)
-        ? favorites.filter(id => id !== productId)
-        : [...favorites, productId];
-      
-      setFavorites(newFavorites);
-
-      // 백엔드 API 호출 (비동기, 에러가 나도 로컬 상태는 유지)
-      favoriteService.toggleFavorite(user.id, productId)
-        .catch(error => {
-          console.error('좋아요 API 저장 오류:', error);
-          // 에러 발생 시 롤백하지 않음 (로컬 스토리지 우선)
-        });
-
-      return { success: true };
-    } catch (error) {
-      console.error('좋아요 토글 오류:', error);
-      return { success: false, message: '좋아요 처리 중 오류가 발생했습니다.' };
-    }
+      return [...prev, product]; // 추가
+    });
   };
 
-  /**
-   * 상품이 좋아요 목록에 있는지 확인
-   * 
-   * @param {string} productId - 상품 ID
-   * @returns {boolean} 좋아요 여부
-   */
+  // 4. 이 상품을 내가 좋아요 했는지 확인
   const isFavorite = (productId) => {
-    return favorites.includes(productId);
-  };
-
-  const value = {
-    favorites,
-    toggleFavorite,
-    isFavorite,
-    favoritesCount: favorites.length
+    return favorites.some(item => item.product_id === productId);
   };
 
   return (
-    <FavoritesContext.Provider value={value}>
+    <FavoritesContext.Provider value={{ favorites, toggleFavorite, isFavorite }}>
       {children}
     </FavoritesContext.Provider>
   );
-}
+};
 
-/**
- * useFavorites - 좋아요 컨텍스트를 사용하는 훅
- */
-export function useFavorites() {
-  const context = useContext(FavoritesContext);
-  if (!context) {
-    throw new Error('useFavorites must be used within a FavoritesProvider');
-  }
-  return context;
-}
-
+export const useFavorites = () => useContext(FavoritesContext);

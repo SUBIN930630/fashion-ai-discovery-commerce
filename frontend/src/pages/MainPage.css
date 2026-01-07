@@ -1,0 +1,60 @@
+/* src/pages/MainPage.css */
+.main-page {
+  padding: 20px;
+}
+
+.section-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+.product-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr); /* 2열 배치 */
+  gap: 16px;
+}
+
+.product-item {
+  cursor: pointer;
+}
+
+.img-placeholder {
+  width: 100%;
+  padding-bottom: 125%; /* 4:5 비율 */
+  background-color: #f0f0f0;
+  border-radius: 8px;
+  margin-bottom: 8px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #999;
+  font-size: 12px;
+}
+
+.product-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.brand {
+  font-size: 11px;
+  font-weight: 700;
+  color: #333;
+}
+
+.name {
+  font-size: 13px;
+  color: #555;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin: 2px 0;
+}
+
+.price {
+  font-size: 14px;
+  font-weight: 700;
+  color: #000;
+}
