@@ -1,5 +1,5 @@
 // 주문 완료 페이지 컴포넌트
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import './OrderCompletePage.css';
 
@@ -11,6 +11,7 @@ function OrderCompletePage() {
   const { orderId } = useParams();
   const navigate = useNavigate();
   const [order, setOrder] = useState(null);
+  const headerRef = useRef(null);
 
   useEffect(() => {
     // 주문 정보 로드
@@ -21,6 +22,13 @@ function OrderCompletePage() {
       setOrder(foundOrder);
     }
   }, [orderId]);
+
+  // 주문 데이터 로드 후 제목에 포커스 (접근성)
+  useEffect(() => {
+    if (order && headerRef.current) {
+      headerRef.current.focus();
+    }
+  }, [order]);
 
   if (!order) {
     return (
@@ -60,7 +68,7 @@ function OrderCompletePage() {
     <div className="order-complete-page">
       <div className="order-complete-container">
         <div className="order-complete-icon">✓</div>
-        <h1>주문이 완료되었습니다!</h1>
+        <h1 tabIndex="-1" ref={headerRef}>주문이 완료되었습니다!</h1>
         <p className="order-complete-message">
           주문해주셔서 감사합니다. 주문 내역은 마이페이지에서 확인하실 수 있습니다.
         </p>

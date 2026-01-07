@@ -231,6 +231,9 @@ free -h
 # 홈 디렉토리로 이동
 cd ~
 
+# 기존 디렉토리가 있다면 삭제 (선택사항)
+# rm -rf fashion-ai-discovery-commerce
+
 # Git 저장소 클론
 git clone <your-repository-url>
 cd fashion-ai-discovery-commerce
@@ -238,6 +241,50 @@ cd fashion-ai-discovery-commerce
 # 예시:
 # git clone https://github.com/your-username/fashion-ai-discovery-commerce.git
 # cd fashion-ai-discovery-commerce
+```
+
+**⚠️ "already exists and is not an empty directory" 오류 발생 시:**
+
+이 오류는 해당 디렉토리가 이미 존재할 때 발생합니다.
+
+**해결 방법 1: 기존 디렉토리 삭제 후 클론 (권장)**
+```bash
+cd ~
+rm -rf fashion-ai-discovery-commerce
+git clone https://github.com/itgoblin-develop/fashion-ai-discovery-commerce.git
+cd fashion-ai-discovery-commerce
+```
+
+**해결 방법 2: 다른 이름으로 클론**
+```bash
+cd ~
+git clone https://github.com/itgoblin-develop/fashion-ai-discovery-commerce.git fashion-ai
+cd fashion-ai
+```
+
+**해결 방법 3: 기존 디렉토리가 이미 Git 저장소인 경우**
+```bash
+cd ~/fashion-ai-discovery-commerce
+git pull origin 메인  # 최신 코드 가져오기
+```
+
+**⚠️ "Authentication failed" 오류 발생 시:**
+
+비공개 저장소이거나 인증이 필요한 경우 발생합니다.
+
+**해결 방법 1: 로컬에서 SCP로 업로드 (가장 간단, 권장)**
+- 아래 "방법 2: 로컬에서 SCP로 업로드" 참고
+
+**해결 방법 2: SSH 키 사용 (EC2에 SSH 키 설정 필요)**
+```bash
+# EC2에 SSH 키 추가 후
+git clone git@github.com:itgoblin-develop/fashion-ai-discovery-commerce.git
+```
+
+**해결 방법 3: Personal Access Token 사용**
+```bash
+# GitHub에서 Personal Access Token 생성 후
+git clone https://<TOKEN>@github.com/itgoblin-develop/fashion-ai-discovery-commerce.git
 ```
 
 **방법 2: 로컬에서 SCP로 업로드**
@@ -263,15 +310,17 @@ cd fashion-ai-discovery-commerce
 
 ```bash
 # backend 디렉토리로 이동
-cd backend
+cd ~/fashion-ai-discovery-commerce/backend
 
-# .env 파일 생성
-nano .env
-# 또는
-vim .env
+# 방법 1: .env.example 복사 (권장 - 가장 간단)
+cp .env.example .env
+nano .env  # 또는 pico .env
+
+# 방법 2: 새로 생성
+nano .env  # 또는 pico .env
 ```
 
-**.env 파일 내용 (복사하여 붙여넣기):**
+**.env 파일 내용 (방법 2를 선택한 경우 아래 내용을 복사하여 붙여넣기):**
 
 ```env
 # ============================================

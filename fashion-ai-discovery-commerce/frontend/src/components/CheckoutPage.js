@@ -184,34 +184,40 @@ function CheckoutPage() {
             <h2>배송 정보</h2>
             <div className="checkout-form">
               <div className="checkout-form-group">
-                <label>받는 분 이름 *</label>
+                <label htmlFor="recipient_name">받는 분 이름 *</label>
                 <input
+                  id="recipient_name"
                   type="text"
                   name="recipient_name"
                   value={orderInfo.recipient_name}
                   onChange={handleInputChange}
+                  aria-required="true"
                   required
                 />
               </div>
               <div className="checkout-form-group">
-                <label>연락처 *</label>
+                <label htmlFor="recipient_phone">연락처 *</label>
                 <input
+                  id="recipient_phone"
                   type="tel"
                   name="recipient_phone"
                   value={orderInfo.recipient_phone}
                   onChange={handleInputChange}
                   placeholder="010-1234-5678"
+                  aria-required="true"
                   required
                 />
               </div>
               <div className="checkout-form-group">
-                <label>배송 주소 *</label>
+                <label htmlFor="shipping_address">배송 주소 *</label>
                 <input
+                  id="shipping_address"
                   type="text"
                   name="shipping_address"
                   value={orderInfo.shipping_address}
                   onChange={handleInputChange}
                   placeholder="서울시 강남구 테헤란로 123"
+                  aria-required="true"
                   required
                 />
               </div>

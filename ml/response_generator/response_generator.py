@@ -61,6 +61,9 @@ class ResponseGenerator:
                 chat_history=chat_history
             )
             
+            # 컨텍스트를 인스턴스 변수에 저장 (프롬프트 생성 시 사용)
+            self._last_context = context
+            
             # 3. 프롬프트 생성
             prompt = self.template_manager.render_template(template_name, context)
             
@@ -74,6 +77,7 @@ class ResponseGenerator:
                 self.executor,
                 self._create_completion_sync,
                 prompt,
+                chat_history,
             )
             
             ai_response = response.choices[0].message.content
@@ -94,14 +98,83 @@ class ResponseGenerator:
             # 에러 시 기본 응답
             return self._get_fallback_response(intent_result, recommendations)
 
-    def _create_completion_sync(self, prompt: str):
-        """동기 호출을 스레드에서 실행하기 위한 래퍼"""
+    def _create_completion_sync(self, prompt: str, chat_history: Optional[List[Dict]] = None):
+        """
+        동기 호출을 스레드에서 실행하기 위한 래퍼
+        
+        Args:
+            prompt: 현재 사용자 프롬프트
+            chat_history: 대화 히스토리 (이전 메시지들)
+        """
+        messages = []
+        
+        # 1. 시스템 프롬프트 추가
+        messages.append({
+            "role": "system",
+            "content": self.template_manager.get_system_prompt()
+        })
+        
+        # 2. 대화 히스토리 추가 (최근 10개 메시지만, 토큰 제한 고려)
+        if chat_history:
+            # 최근 10개 메시지만 포함 (user와 assistant 쌍으로 최대 5쌍)
+            recent_history = chat_history[-10:]
+            
+            for msg in recent_history:
+                role = msg.get("role", "")
+                content = msg.get("content", "")
+                
+                # role이 user 또는 assistant인 경우만 추가
+                if role in ["user", "assistant"] and content:
+                    messages.append({
+                        "role": role,
+                        "content": content
+                    })
+        
+        # 3. 현재 사용자 프롬프트 추가
+        # 컨텍스트에서 명확한 요청 여부 확인
+        is_clear_request = getattr(self, '_last_context', {}).get('is_clear_request', False)
+        
+        # 대화 히스토리가 있으면 다양성을 요구하는 지시 추가
+        diversity_instructions = ""
+        if chat_history and len(chat_history) > 2:
+            diversity_instructions = """
+- 이전 대화에서 사용한 표현이나 문장 구조를 반복하지 마세요
+- "괜찮아요! 스타일을 찾는 게 가끔은 쉽지 않죠" 같은 고정된 멘트를 사용하지 마세요
+- "원하시는 스타일에 대해 좀 더 구체적으로 말씀해주시면" 같은 반복적인 질문 패턴을 피하세요
+- 매번 새로운 표현과 접근 방식으로 응답하세요
+- 동문서답(같은 말 반복)을 절대 하지 마세요
+"""
+        
+        # 명확한 요청일 때 공감 멘트 생략 지시
+        clear_request_instruction = ""
+        if is_clear_request:
+            clear_request_instruction = """
+**중요: 명확한 요청입니다**
+- 사용자가 구체적인 요구사항을 명시했습니다 (예: "33세 남자 상의 따뜻한걸로 추천")
+- "괜찮습니다! 스타일을 찾는 게 때로는 어려울 수 있죠" 같은 공감 멘트는 생략하세요
+- "원하는 스타일을 찾는 게 때로는 어려울 수 있죠" 같은 불필요한 공감 표현을 사용하지 마세요
+- 바로 추천을 시작하거나 간단한 인사 후 바로 추천하세요
+- 예: "따뜻한 상의를 찾고 계시는군요! 바로 추천해드릴게요." 또는 "따뜻한 상의 추천해드릴게요!"
+"""
+        
+        if diversity_instructions or clear_request_instruction:
+            prompt_with_diversity = f"""{prompt}
+
+**중요 지시사항:**
+{diversity_instructions}
+{clear_request_instruction}
+"""
+        else:
+            prompt_with_diversity = prompt
+        
+        messages.append({
+            "role": "user",
+            "content": prompt_with_diversity
+        })
+        
         return self.client.chat.completions.create(
             model=self.model,
-            messages=[
-                {"role": "system", "content": self.template_manager.get_system_prompt()},
-                {"role": "user", "content": prompt},
-            ],
+            messages=messages,
             temperature=0.7,
             max_tokens=settings.MAX_RESPONSE_LENGTH,
         )
@@ -159,12 +232,25 @@ class ResponseGenerator:
         new_discoveries_display = new_discoveries[:new_discoveries_target]
         existing_preferences_display = existing_preferences[:existing_preferences_target]
         
+        # 명확한 요청인지 판단
+        keywords = getattr(intent_result, 'keywords', [])
+        confidence = intent_result.confidence
+        
+        # 명확한 요청 판단 기준:
+        # 1. confidence가 0.7 이상
+        # 2. 키워드가 2개 이상
+        # 3. 카테고리나 상품 타입이 명시됨 (상의, 하의, 아우터, 신발 등)
+        category_keywords = ['상의', '하의', '아우터', '신발', '원피스', '스커트', '셔츠', '바지', '자켓', '코트', '티셔츠', '니트', '가디건']
+        has_category = any(keyword in user_message for keyword in category_keywords)
+        is_clear_request = confidence >= 0.7 and len(keywords) >= 2 and has_category
+        
         context = {
             "user_message": user_message,
             "intent": intent_result.intent.value,
-            "confidence": intent_result.confidence,
+            "confidence": confidence,
             "exploration_intent": getattr(intent_result, 'exploration_intent', False),
-            "keywords": getattr(intent_result, 'keywords', []),
+            "keywords": keywords,
+            "is_clear_request": is_clear_request,  # 명확한 요청 여부
             "new_discoveries": new_discoveries_display,  # 70% 비율로 제한된 리스트
             "existing_preferences": existing_preferences_display,  # 30% 비율로 제한된 리스트
             "new_discoveries_all": new_discoveries,  # 전체 리스트 (필요시 사용)
@@ -224,6 +310,9 @@ class ResponseGenerator:
         
         # 문서 규칙: 꼬리질문 개수 제한 (최대 2개)
         response = self._limit_question_count(response)
+        
+        # 비율 정보 제거 (70%, 30% 등)
+        response = self._remove_percentage_info(response)
         
         # 이모지 사용 설정에 따른 처리
         if not settings.USE_EMOJIS:
@@ -325,6 +414,27 @@ class ResponseGenerator:
                        final_count=final_count)
         
         return response
+    
+    def _remove_percentage_info(self, text: str) -> str:
+        """
+        응답에서 비율 정보 제거 (70%, 30% 등)
+        예: "새로운 발견 추천 (70%)" -> "새로운 발견 추천"
+        """
+        import re
+        
+        # (70%), (30%), (50%) 등의 패턴 제거
+        text = re.sub(r'\s*\(\d+%\)\s*', '', text)
+        
+        # "새로운 발견 추천 70%" -> "새로운 발견 추천"
+        text = re.sub(r'\s*\d+%\s*', '', text)
+        
+        # "70%", "30%" 같은 단독 비율 텍스트 제거
+        text = re.sub(r'\b\d+%\b', '', text)
+        
+        # 연속된 공백 제거
+        text = re.sub(r'\s+', ' ', text)
+        
+        return text.strip()
     
     def _remove_emojis(self, text: str) -> str:
         """텍스트에서 이모지 제거"""

@@ -33,6 +33,30 @@ function ProductDetailPage() {
     }
   }, [productId]);
 
+  if (isLoading) {
+    return (
+      <div className="product-detail-page-wrapper">
+        <div className="product-detail-not-found">
+          <h2>상품을 불러오는 중입니다...</h2>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="product-detail-page-wrapper">
+        <div className="product-detail-not-found">
+          <h2>{error}</h2>
+          <div style={{ marginTop: '1rem' }}>
+            <button onClick={() => loadProduct()} style={{ marginRight: '0.75rem' }}>다시 시도</button>
+            <button onClick={() => navigate('/')}>홈으로 돌아가기</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!product) {
     return (
       <div className="product-detail-page-wrapper">

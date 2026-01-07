@@ -98,12 +98,27 @@ class ChatService:
                        exploration_intent=intent_result.exploration_intent)
             
             # 4. 상품 검색 및 추천
-            recommendations = await self._generate_recommendations(
+            # 질문 단계(정보 수집 단계)에서는 추천 상품을 보여주지 않음
+            # - confidence가 낮을 때 (의도 파악이 불명확)
+            # - 사용자 메시지가 매우 짧을 때 (구체적인 요구사항 없음)
+            should_show_recommendations = self._should_show_recommendations(
                 user_message=user_message,
                 intent_result=intent_result,
-                user_profile=user_profile,
-                session=session
+                chat_history=chat_history
             )
+            
+            recommendations = []
+            if should_show_recommendations:
+                recommendations = await self._generate_recommendations(
+                    user_message=user_message,
+                    intent_result=intent_result,
+                    user_profile=user_profile,
+                    session=session
+                )
+            else:
+                logger.info("Skipping recommendations - information gathering phase",
+                           confidence=intent_result.confidence,
+                           message_length=len(user_message))
             
             # 5. AI 응답 생성
             ai_response = await self.response_generator.generate_response(
@@ -114,7 +129,27 @@ class ChatService:
                 chat_history=chat_history
             )
             
-            # 6. 메시지 저장
+            # 6. GPT 응답에서 상품명 추출 및 DB 매칭 (새로운 단계)
+            # recommendations가 비어있고, GPT 응답이 상품 추천 내용을 포함하는 경우
+            if (not recommendations or len(recommendations) == 0) and \
+               self._is_product_recommendation_response(ai_response):
+                logger.info("Extracting products from GPT response",
+                           response_length=len(ai_response),
+                           session_id=session.session_id)
+                extracted_recommendations = await self._match_products_from_response(
+                    response=ai_response,
+                    user_message=user_message,
+                    intent_result=intent_result,
+                    user_profile=user_profile,
+                    session=session
+                )
+                if extracted_recommendations:
+                    recommendations = extracted_recommendations
+                    logger.info("Products extracted from GPT response",
+                               count=len(recommendations),
+                               session_id=session.session_id)
+            
+            # 7. 메시지 저장
             await self._save_messages(session, user_message, ai_response, intent_result)
             
             return {
@@ -263,6 +298,212 @@ class ChatService:
                     "cart_total_price": 0
                 }
             }
+    
+    def _should_show_recommendations(
+        self,
+        user_message: str,
+        intent_result: Any,
+        chat_history: List[Dict]
+    ) -> bool:
+        """
+        추천 상품을 보여줄지 여부를 결정
+        
+        질문 단계(정보 수집 단계)에서는 추천 상품을 보여주지 않음
+        
+        Args:
+            user_message: 사용자 메시지
+            intent_result: 의도 분석 결과
+            chat_history: 대화 히스토리
+            
+        Returns:
+            bool: 추천 상품을 보여줄지 여부
+        """
+        # 1. confidence가 낮으면 (0.6 미만) 추천하지 않음
+        if intent_result.confidence < 0.6:
+            return False
+        
+        # 2. 사용자 메시지가 매우 짧으면 (5자 이하) 추천하지 않음
+        message_length = len(user_message.strip())
+        if message_length <= 5:
+            return False
+        
+        # 3. 대화 히스토리가 없거나 매우 짧으면 (첫 대화) 항상 추천
+        if not chat_history or len(chat_history) <= 2:
+            return True
+        
+        # 4. 최근 대화에서 사용자가 질문만 하고 구체적인 요구사항이 없는 경우 체크
+        # (예: "네", "좋아", "어떻게" 등)
+        question_only_keywords = ['네', '좋아', '어떻게', '뭐', '무엇', '어떤', '어디', '언제', '누구']
+        user_message_lower = user_message.strip().lower()
+        if any(keyword in user_message_lower for keyword in question_only_keywords):
+            if message_length <= 10:  # 질문 키워드만 있고 짧은 경우
+                return False
+        
+        return True
+    
+    def _extract_product_keywords_from_response(self, response: str) -> List[str]:
+        """
+        GPT 응답에서 상품 관련 키워드 추출
+        
+        Args:
+            response: GPT 응답 텍스트
+            
+        Returns:
+            List[str]: 추출된 상품 키워드 리스트
+        """
+        # 패션 상품 키워드 사전 (카테고리별)
+        product_keywords = [
+            # 상의
+            "티셔츠", "셔츠", "후드티", "맨투맨", "니트", "가디건", "블라우스", "탱크톱",
+            "화이트 셔츠", "블랙 셔츠", "긴팔 셔츠", "반팔 셔츠",
+            # 하의
+            "바지", "팬츠", "슬랙스", "청바지", "조거팬츠", "치노", "와이드팬츠", "스키니",
+            "와이드 팬츠", "스키니 팬츠", "슬림 팬츠",
+            # 아우터
+            "자켓", "코트", "패딩", "바람막이", "블레이저", "트러커", "MA-1", "무스탕",
+            "오버사이즈 블레이저", "클래식 블레이저", "체크 블레이저",
+            # 원피스/스커트
+            "원피스", "스커트", "치마", "롱 원피스", "미니 원피스", "A라인 스커트",
+            # 신발
+            "운동화", "구두", "부츠", "슬리퍼", "샌들", "로퍼", "스니커즈", "하이탑",
+            # 기타
+            "액세서리", "가방", "시계", "모자", "벨트"
+        ]
+        
+        found_keywords = []
+        response_lower = response.lower()
+        
+        for keyword in product_keywords:
+            # 키워드가 응답에 포함되어 있는지 확인 (공백 차이 무시)
+            keyword_normalized = keyword.replace(" ", "")
+            if keyword in response or keyword_normalized in response_lower.replace(" ", ""):
+                found_keywords.append(keyword)
+        
+        return found_keywords
+    
+    def _is_product_recommendation_response(self, response: str) -> bool:
+        """
+        GPT 응답이 상품 추천 완료 신호를 포함하는지 확인
+        
+        Args:
+            response: GPT 응답 텍스트
+            
+        Returns:
+            bool: 상품 추천 완료 신호가 있으면 True
+        """
+        # 완료 신호 키워드
+        completion_signals = [
+            "혹시 더 궁금한 점",
+            "다른 스타일에 대한 요청",
+            "다른 스타일에 대한",
+            "추천해드릴게요",
+            "추천드릴게요",
+            "추천해드려요",
+            "추천드려요",
+            "제안",
+            "어떤 스타일",
+            "다른 스타일",
+            "추천드립니다",
+            "추천합니다",
+        ]
+        
+        # 상품 키워드 개수 확인
+        product_keywords = self._extract_product_keywords_from_response(response)
+        
+        # 신호가 있거나 상품 키워드가 2개 이상이면 추천 완료로 간주
+        has_completion_signal = any(
+            signal in response for signal in completion_signals
+        )
+        has_multiple_products = len(product_keywords) >= 2
+        
+        return has_completion_signal or has_multiple_products
+    
+    async def _match_products_from_response(
+        self,
+        response: str,
+        user_message: str,
+        intent_result: Any,
+        user_profile: Optional[Dict],
+        session: ChatSession
+    ) -> List[Dict]:
+        """
+        GPT 응답에서 상품명을 추출하여 DB에서 매칭
+        
+        Args:
+            response: GPT 응답 텍스트
+            user_message: 사용자 메시지
+            intent_result: 의도 분석 결과
+            user_profile: 사용자 프로필
+            session: 채팅 세션
+        
+        Returns:
+            List[Dict]: 매칭된 상품 리스트
+        """
+        try:
+            # 1. 상품 키워드 추출
+            product_keywords = self._extract_product_keywords_from_response(response)
+            
+            # 2. 검색 쿼리 생성 (키워드 또는 사용자 메시지 사용)
+            search_query = user_message
+            if product_keywords:
+                # 키워드를 조합하여 검색 쿼리 생성 (상위 3개 키워드)
+                search_query = " ".join(product_keywords[:3])
+                logger.info("Extracted product keywords from response",
+                           keywords=product_keywords[:3],
+                           query=search_query)
+            
+            # 3. DB 검색
+            search_results = await self.search_engine.search_products(
+                query=search_query,
+                user_profile=user_profile,
+                intent=intent_result.intent,
+                limit=50
+            )
+            
+            if not search_results:
+                logger.warning("No products found for extracted keywords",
+                             query=search_query)
+                return []
+            
+            # 4. MMR 알고리즘으로 다양성 있는 추천 선택
+            mmr_result = await self.mmr_scorer.select_recommendations(
+                query_embedding=None,  # search_engine에서 임베딩 처리
+                candidates=search_results,
+                target_count=settings.MAX_RECOMMENDATIONS,
+                strategy=intent_result.recommendation_strategy,
+                excluded_ids=await self._get_excluded_products(session.user_id),
+                user_history=await self._get_user_history(session.user_id)
+            )
+            
+            # 5. 응답 형식으로 변환
+            recommendations = []
+            for product in mmr_result.selected_products:
+                product_id = product.id
+                product_url = f"/product/{product_id}"
+                
+                recommendations.append({
+                    "id": product_id,
+                    "name": product.metadata.get("name", ""),
+                    "brand": product.metadata.get("brand", ""),
+                    "price": product.metadata.get("price", 0),
+                    "image_url": product.metadata.get("image_url", ""),
+                    "product_url": product_url,
+                    "similarity_score": product.similarity_score,
+                    "recommendation_type": product.recommendation_type.value,
+                    "reasoning": f"유사도: {product.similarity_score:.2f}"
+                })
+            
+            logger.info("Products matched from GPT response",
+                       count=len(recommendations),
+                       keywords=product_keywords[:3])
+            
+            return recommendations
+            
+        except Exception as e:
+            logger.error("Error matching products from response",
+                        error=str(e),
+                        exc_info=True)
+            return []
     
     async def _generate_recommendations(
         self,
