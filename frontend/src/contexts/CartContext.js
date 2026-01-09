@@ -30,6 +30,11 @@ export const CartProvider = ({ children }) => {
     });
   };
 
+  // 3b. 수량 변경
+  const updateQuantity = (productId, quantity) => {
+    setCartItems(prev => prev.map(item => item.product_id === productId ? { ...item, quantity: Math.max(1, quantity) } : item));
+  };
+
   // 4. 상품 삭제 기능
   const removeFromCart = (productId) => {
     setCartItems(prev => prev.filter(item => item.product_id !== productId));
@@ -37,9 +42,12 @@ export const CartProvider = ({ children }) => {
 
   // 5. 총 금액 계산
   const totalPrice = cartItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+  const totalQuantity = cartItems.reduce((acc, item) => acc + (item.quantity || 0), 0);
+
+  const clearCart = () => setCartItems([]);
 
   return (
-    <CartContext.Provider value={{ cartItems, addToCart, removeFromCart, totalPrice }}>
+    <CartContext.Provider value={{ cartItems, addToCart, removeFromCart, updateQuantity, clearCart, totalPrice, totalQuantity }}>
       {children}
     </CartContext.Provider>
   );
